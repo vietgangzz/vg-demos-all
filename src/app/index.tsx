@@ -1,98 +1,97 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { demos, type Demo } from '@/demos/registry';
+import { useTheme } from '@/hooks/use-theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function HomeScreen() {
+  // Side insets (iPhone Duo's camera column, landscape notches) aren't applied by the scroll view
+  const insets = useSafeAreaInsets();
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <FlatList
+      data={demos}
+      keyExtractor={(item) => item.id}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={[
+        styles.list,
+        { paddingLeft: Spacing.three + insets.left, paddingRight: Spacing.three + insets.right },
+      ]}
+      renderItem={({ item, index }) => <DemoRow demo={item} index={index} />}
+      ListEmptyComponent={
+        <ThemedText themeColor="textSecondary" style={styles.empty}>
+          No demos yet. Add one in src/demos/registry.ts
+        </ThemedText>
+      }
+    />
   );
 }
 
-export default function HomeScreen() {
+function DemoRow({ demo, index }: { demo: Demo; index: number }) {
+  const theme = useTheme();
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/demo/[id]', params: { id: demo.id } })}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+      ]}>
+      <ThemedText type="code" themeColor="textSecondary" style={styles.index}>
+        {String(index + 1).padStart(2, '0')}
+      </ThemedText>
+      <View style={styles.rowBody}>
+        <ThemedText type="smallBold" style={styles.rowTitle}>
+          {demo.title}
         </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+          {demo.description}
+        </ThemedText>
+        {demo.author ? (
+          <ThemedText type="code" themeColor="textSecondary" style={styles.author}>
+            {demo.author}
+          </ThemedText>
+        ) : null}
+      </View>
+      <ThemedText themeColor="textSecondary">›</ThemedText>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
+  list: {
+    padding: Spacing.three,
+    gap: Spacing.two,
+    width: '100%',
     maxWidth: MaxContentWidth,
+    alignSelf: 'center',
   },
-  heroSection: {
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
     gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    borderCurve: 'continuous',
+  },
+  index: {
+    width: 20,
+  },
+  rowBody: {
+    flex: 1,
+    gap: Spacing.half,
+  },
+  rowTitle: {
+    fontSize: 16,
+  },
+  author: {
+    marginTop: Spacing.one,
+  },
+  empty: {
+    textAlign: 'center',
+    marginTop: Spacing.six,
   },
 });

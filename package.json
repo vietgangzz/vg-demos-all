@@ -4,7 +4,12 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.21",
+    "@lodev09/react-native-true-sheet": "^3.11.17",
+    "@shopify/react-native-skia": "2.6.2",
+    "@typegpu/gl": "^0.12.5",
+    "@typegpu/three": "^0.12.1",
     "expo": "~57.0.26",
+    "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.20",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
@@ -17,27 +22,40 @@
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
+    "fast-text-encoding": "^1.0.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-pulsar": "^1.7.0",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.10.1"
+    "react-native-webgpu": "^0.10.4",
+    "react-native-worklets": "0.10.1",
+    "three": "^0.186.1",
+    "typegpu": "^0.12.6"
   },
   "devDependencies": {
+    "@types/fast-text-encoding": "^1.0.3",
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "@types/three": "^0.186.0",
+    "@webgpu/types": "^0.1.74",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
+    "typescript": "~6.0.3",
+    "unplugin-typegpu": "^0.12.4"
   },
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },
-  "private": true
+  "private": true,
+  "trustedDependencies": [
+    "@shopify/react-native-skia"
+  ]
 }

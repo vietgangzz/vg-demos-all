@@ -41,3 +41,9 @@ example
 # generated native folders
 /ios
 /android
+
+# OSM download cache (regenerate with scripts/osm/fetch.mjs)
+scripts/osm/.cache/
+
+# Screen recordings from argent
+.argent/recordings/
