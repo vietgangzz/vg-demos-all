@@ -398,6 +398,9 @@ function extrudeBuildings(list: (MapBuilding & { h: number; color: string })[]) 
   });
 }
 
+/** Half-width share of a road ribbon that is carriageway (the road shader paints sidewalk past 0.14 / 0.86) */
+const CARRIAGEWAY = 0.72;
+
 function buildRoads(scene: THREE.Scene, roads: Road[]) {
   const LIFT: Record<Road['osm'], number> = {
     motorway: 0.034,
@@ -408,6 +411,16 @@ function buildRoads(scene: THREE.Scene, roads: Road[]) {
     local: 0.02,
   };
   const tiles = new Map<string, THREE.BufferGeometry[]>();
+  // Ground-level roads overlap a lot (dual carriageways, junctions, slip roads) and same-class
+  // ribbons sit at exactly the same height, so they z-fight and shimmer as the camera moves.
+  // They draw in two fixed-order passes without depth instead: whole ribbons with their
+  // sidewalks first, then just the carriageways on top. Bridges, ramps and cuts keep depth.
+  const flatFull = new Map<string, THREE.BufferGeometry[]>();
+  const flatCarriage = new Map<string, THREE.BufferGeometry[]>();
+  const add = (map: Map<string, THREE.BufferGeometry[]>, key: string, geo: THREE.BufferGeometry) => {
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(geo);
+  };
   for (const r of roads) {
     if (r.points.length < 2 || r.tunnel) continue;
     const lift = LIFT[r.osm] + (r.bridge ? 0.01 : 0);
@@ -431,15 +444,22 @@ function buildRoads(scene: THREE.Scene, roads: Road[]) {
       const b = sides[Math.min(sides.length - 1, i + 1)];
       return [Math.min(a[0], sides[i][0], b[0]), Math.min(a[1], sides[i][1], b[1])];
     });
-    const geo = ribbonSides(
-      pts.map((p) => new THREE.Vector3(p.x, p.y + lift, p.z)),
-      smooth,
-      full
-    );
+    const centre = pts.map((p) => new THREE.Vector3(p.x, p.y + lift, p.z));
+    const geo = ribbonSides(centre, smooth, full);
     const mid = r.points[Math.floor(r.points.length / 2)];
     const key = `${Math.floor(mid.x / TILE)},${Math.floor(mid.z / TILE)}`;
-    if (!tiles.has(key)) tiles.set(key, []);
-    tiles.get(key)!.push(geo);
+    const flat = !r.bridge && !r.cut && r.points.every((p) => Math.abs(p.y) < 1e-3);
+    if (!flat) {
+      add(tiles, key, geo);
+      continue;
+    }
+    add(flatFull, key, geo);
+    // Same uv span (fullHalf), clipped to where the shader paints asphalt
+    const carriage = smooth.map(([a, b]): [number, number] => [
+      Math.min(a, full * CARRIAGEWAY),
+      Math.min(b, full * CARRIAGEWAY),
+    ]);
+    add(flatCarriage, key, ribbonSides(centre, carriage, full));
   }
   const material = createRoadMaterial();
   for (const geos of tiles.values()) {
@@ -447,6 +467,23 @@ function buildRoads(scene: THREE.Scene, roads: Road[]) {
     g.computeBoundingSphere();
     scene.add(new THREE.Mesh(g, material));
   }
+  // After everything opaque at order 0 (water, buildings, cars) so those still hide or sit on
+  // the roads by depth; a tiny per-tile step keeps the paint order stable while the camera moves
+  const flatMaterial = createRoadMaterial();
+  flatMaterial.depthWrite = false;
+  const keys = [...flatFull.keys()].sort();
+  keys.forEach((key, i) => {
+    for (const [map, order] of [
+      [flatFull, 1],
+      [flatCarriage, 2],
+    ] as const) {
+      const g = merge(map.get(key)!);
+      g.computeBoundingSphere();
+      const mesh = new THREE.Mesh(g, flatMaterial);
+      mesh.renderOrder = order + i * 1e-4;
+      scene.add(mesh);
+    }
+  });
 }
 
 /** Points every `step` units along a polyline (keeping the original corners) */

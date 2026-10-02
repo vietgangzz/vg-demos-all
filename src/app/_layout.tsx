@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { Colors } from '@/constants/theme';
+import { getDemo } from '@/demos/registry';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,7 +29,13 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ title: 'VG Demos', headerLargeTitle: true }} />
           <Stack.Screen
             name="demo/[id]"
-            options={{ headerShown: false, presentation: 'fullScreenModal' }}
+            options={({ route }) => ({
+              headerShown: false,
+              // Without a close button the demo is pushed, so the edge swipe takes you back
+              presentation: getDemo((route.params as { id?: string } | undefined)?.id)?.hideClose
+                ? 'card'
+                : 'fullScreenModal',
+            })}
           />
         </Stack>
       </ThemeProvider>

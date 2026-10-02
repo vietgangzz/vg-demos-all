@@ -28,6 +28,7 @@ import { GREEN, INK, MUTED } from './theme';
 const DETENTS = ['peek', 0.5, 1] as const;
 const MEDIUM = 1;
 const LARGE = 2;
+const GRABBER = { width: 36, height: 5, topMargin: 7 };
 
 type Props = {
   scene: LiveScene | null;
@@ -162,11 +163,7 @@ function SheetBody({
             <Text style={styles.cancel}>Cancel</Text>
           </Pressable>
         </Animated.View>
-      ) : (
-        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={styles.lineAvatar}>
-          <Text style={styles.lineAvatarText}>{LINE_1.number}</Text>
-        </Animated.View>
-      )}
+      ) : null}
     </View>
   );
 
@@ -183,6 +180,8 @@ function SheetBody({
       backgroundColor="rgba(250, 251, 253, 0.55)"
       maxContentWidth={side ? sideWidth : undefined}
       dismissible={false}
+      // The iOS 27 system grabber is long and thin; a compact pill reads better on glass
+      grabberOptions={GRABBER}
       dimmedDetentIndex={LARGE}
       scrollable
       scrollableOptions={{ topScrollEdgeEffect: 'soft' }}
@@ -354,20 +353,6 @@ const styles = StyleSheet.create({
   cancel: {
     color: '#0A84FF',
     fontSize: 17,
-  },
-  lineAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: LINE_1.color,
-    boxShadow: '0 4px 10px rgba(228, 37, 44, 0.3)',
-  },
-  lineAvatarText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 800,
   },
   content: {
     paddingHorizontal: 12,

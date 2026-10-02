@@ -20,6 +20,7 @@ import { Canvas, type CanvasRef } from 'react-native-webgpu';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { SymbolView } from 'expo-symbols';
 
 import { LINE_1, STATIONS } from '@/demos/metro/line-1';
 import { GlassButton } from '@/components/glass-button';
@@ -36,6 +37,7 @@ import {
   type FrameInfo,
   type LiveScene,
 } from './scene';
+import { LoadingOverlay } from './loading';
 import { NativeStatusSheet } from './native-sheet';
 import { useCountdown, useLineKey } from './status';
 import { GREEN, INK, MUTED, SPRING } from './theme';
@@ -48,6 +50,10 @@ const FLOAT_GAP = 30;
 const SIDE_SHEET_WIDTH = 380;
 /** Header capsule height (badge 34 + padding 2 × 8) */
 const HEADER_HEIGHT = 50;
+/** Width of the map control capsule, and the height of each of its buttons */
+const MAP_CONTROL = 46;
+/** Left strip the map pan ignores, so the edge swipe goes back */
+const EDGE_SWIPE = 24;
 
 /** Wall clock for gesture worklets (tap-then-drag detection) */
 const clockMs = () => {
@@ -60,6 +66,8 @@ export default function MetroLive() {
   const { width, height } = useWindowDimensions();
   const canvasRef = useRef<CanvasRef>(null);
   const [scene, setScene] = useState<LiveScene | null>(null);
+  // The loader stays up until the first frame is on screen, not just until the scene exists
+  const [rendered, setRendered] = useState(false);
   const [follow, setFollow] = useState<number | null>(YOUR_TRAIN);
   const [overviewOn, setOverviewOn] = useState(false);
   const [isNight, setIsNight] = useState(false);
@@ -111,7 +119,14 @@ export default function MetroLive() {
         yaw,
         pitch,
       });
-      live.setOnFrame((info) => frame.set(info));
+      let first = true;
+      live.setOnFrame((info) => {
+        frame.set(info);
+        if (first) {
+          first = false;
+          setRendered(true);
+        }
+      });
       // Dev builds expose the scene for QA: metroScene.lookAt(x, z, zoom)
       if (__DEV__) (globalThis as { metroScene?: LiveScene }).metroScene = live;
       setScene(live);
@@ -199,6 +214,8 @@ export default function MetroLive() {
     });
   const pan = Gesture.Pan()
     .maxPointers(1)
+    // Leave the left edge to the system back swipe (the demo has no close button)
+    .hitSlop({ left: -EDGE_SWIPE })
     .onStart(() => {
       // A drag that starts right after a tap is the one-finger zoom (tap, then slide)
       zoomDrag.set(clockMs() - lastTapAt.get() < 320);
@@ -293,6 +310,8 @@ export default function MetroLive() {
         </View>
       </GestureDetector>
 
+      {rendered ? null : <LoadingOverlay bottomInset={sideLayout ? 0 : Math.round(height * 0.5)} />}
+
       {scene ? <YourTrainEvents scene={scene} /> : null}
 
       {/* Header: Liquid Glass over the map (frosted fallback before iOS 26) */}
@@ -351,24 +370,13 @@ export default function MetroLive() {
           </Animated.Text>
         </GlassButton>
         <Compass yaw={yaw} pitch={pitch} onPress={resetCamera} colorScheme={glassScheme} inline={sideLayout} />
-        <View style={styles.mapButtons}>
-          <GlassButton
-            onPress={overview}
-            tint={overviewOn ? INK : undefined}
-            colorScheme={glassScheme}
-            style={styles.mapButton}>
-            <Text style={[styles.mapButtonText, (overviewOn || isNight) && { color: '#fff' }]}>Overview</Text>
-          </GlassButton>
-          <GlassButton
-            onPress={() => focusTrain(YOUR_TRAIN)}
-            tint={follow === YOUR_TRAIN ? GREEN : undefined}
-            colorScheme={glassScheme}
-            style={styles.mapButton}>
-            <Text style={[styles.mapButtonText, (follow === YOUR_TRAIN || isNight) && { color: '#fff' }]}>
-              Follow my train
-            </Text>
-          </GlassButton>
-        </View>
+        <MapControls
+          overviewOn={overviewOn}
+          following={follow === YOUR_TRAIN}
+          onOverview={overview}
+          onFollow={() => focusTrain(YOUR_TRAIN)}
+          colorScheme={glassScheme}
+        />
       </Animated.View>
 
       {/* Status sheet: native UISheetPresentationController (TrueSheet), Apple Maps style */}
@@ -469,6 +477,25 @@ function StationLabel({
   );
 }
 
+/** Rough label widths (code chip + name + UG tag at 11 pt), for pin-on-label checks */
+const LABEL_WIDTHS = STATIONS.map((s) => 36 + s.name.length * 6.4 + (s.underground ? 18 : 0));
+
+/** Whether train `index`'s pin overlaps a visible station label this frame */
+function pinHitsLabel(info: FrameInfo, index: number) {
+  'worklet';
+  const px = info.trains[index * 3] ?? -999;
+  const py = info.trains[index * 3 + 1] ?? -999;
+  for (let i = 0; i < LABEL_WIDTHS.length; i++) {
+    if ((info.stations[i * 4 + 2] ?? 0) < 0.25) continue;
+    // Label box starts 12 pt left of and 30 pt above its anchor (see StationLabel)
+    const lx = (info.stations[i * 4] ?? -999) - 12;
+    const ly = (info.stations[i * 4 + 1] ?? -999) - 30;
+    // Pin box: ~30 pt wide around x, 26 pt tall ending at y
+    if (px + 15 > lx && px - 15 < lx + LABEL_WIDTHS[i] && py > ly && py - 26 < ly + 24) return true;
+  }
+  return false;
+}
+
 function TrainPin({
   index,
   frame,
@@ -480,13 +507,22 @@ function TrainPin({
   mine: boolean;
   scene: LiveScene | null;
 }) {
+  // Other trains step aside when they would sit on a station label: the label's green dot
+  // already says a train is there, and two chips on top of each other read as clutter
+  const covered = useSharedValue(0);
+  useAnimatedReaction(
+    () => (mine ? false : pinHitsLabel(frame.get(), index)),
+    (hit, prev) => {
+      if (hit !== prev) covered.set(withTiming(hit ? 1 : 0, { duration: 180 }));
+    }
+  );
   const style = useAnimatedStyle(() => {
     const t = frame.get().trains;
     const x = t[index * 3] ?? -999;
     const y = t[index * 3 + 1] ?? -999;
     const o = t[index * 3 + 2] ?? 0;
     return {
-      opacity: o,
+      opacity: o * (1 - covered.get()),
       transform: [{ translateX: x - PIN_W / 2 }, { translateY: y - 26 }],
     };
   });
@@ -509,6 +545,54 @@ function TrainPin({
 function PinCountdown({ scene, index }: { scene: LiveScene; index: number }) {
   const value = useCountdown(scene, index);
   return <Text style={[styles.pinText, { color: '#fff' }]}>Your train · {value}</Text>;
+}
+
+/** Apple Maps-style glass capsule: overview on top, follow-my-train below */
+function MapControls({
+  overviewOn,
+  following,
+  onOverview,
+  onFollow,
+  colorScheme,
+}: {
+  overviewOn: boolean;
+  following: boolean;
+  onOverview: () => void;
+  onFollow: () => void;
+  colorScheme: 'light' | 'dark';
+}) {
+  const idle = colorScheme === 'dark' ? '#FFFFFF' : INK;
+  return (
+    // Holds the row's 36 pt slot; the taller capsule grows upwards from its bottom edge
+    <View style={styles.mapControlsSlot}>
+      <GlassView
+        glassEffectStyle="regular"
+        isInteractive
+        colorScheme={colorScheme}
+        style={[styles.mapControls, !GLASS && styles.headerFallback]}>
+        <Pressable
+          onPress={onOverview}
+          accessibilityRole="button"
+          accessibilityLabel="Overview"
+          accessibilityState={{ selected: overviewOn }}
+          style={({ pressed }) => [styles.mapControl, pressed && styles.mapControlPressed]}>
+          <SymbolView name={overviewOn ? 'map.fill' : 'map'} size={21} tintColor={overviewOn ? GREEN : idle} />
+        </Pressable>
+        <Pressable
+          onPress={onFollow}
+          accessibilityRole="button"
+          accessibilityLabel="Follow my train"
+          accessibilityState={{ selected: following }}
+          style={({ pressed }) => [styles.mapControl, pressed && styles.mapControlPressed]}>
+          <SymbolView
+            name={following ? 'location.fill' : 'location'}
+            size={20}
+            tintColor={following ? GREEN : idle}
+          />
+        </Pressable>
+      </GlassView>
+    </View>
+  );
 }
 
 /** Appears once the view is orbited or tilted; the needle points north. Tap to reset. */
@@ -656,7 +740,7 @@ const styles = StyleSheet.create({
   compassInline: {
     left: undefined,
     right: 0,
-    bottom: 44,
+    bottom: MAP_CONTROL * 2 + 8,
   },
   compassWrap: {
     position: 'absolute',
@@ -685,17 +769,27 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
     borderTopColor: '#B8BEC7',
   },
-  mapButtons: {
-    flexDirection: 'row',
-    gap: 8,
+  mapControlsSlot: {
+    width: MAP_CONTROL,
+    height: 36,
   },
-  mapButton: {
-    paddingHorizontal: 14,
+  mapControls: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: MAP_CONTROL,
+    borderRadius: MAP_CONTROL / 2,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
   },
-  mapButtonText: {
-    color: INK,
-    fontSize: 13,
-    fontWeight: 600,
+  mapControl: {
+    width: MAP_CONTROL,
+    height: MAP_CONTROL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapControlPressed: {
+    opacity: 0.5,
   },
   stationSlot: {
     position: 'absolute',
@@ -750,11 +844,13 @@ const styles = StyleSheet.create({
     width: PIN_W,
     alignItems: 'center',
   },
+  // White like the station labels: a dark chip got lost on the red line
   pin: {
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 9,
-    backgroundColor: 'rgba(20, 24, 31, 0.78)',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    boxShadow: '0 2px 8px rgba(20, 30, 50, 0.18)',
   },
   pinMine: {
     backgroundColor: GREEN,
@@ -763,7 +859,7 @@ const styles = StyleSheet.create({
     boxShadow: `0 4px 12px rgba(31, 163, 91, 0.4)`,
   },
   pinText: {
-    color: '#fff',
+    color: INK,
     fontSize: 11,
     fontWeight: 700,
     fontVariant: ['tabular-nums'],
@@ -776,6 +872,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 5,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: 'rgba(20, 24, 31, 0.78)',
+    borderTopColor: 'rgba(255, 255, 255, 0.96)',
   },
 });

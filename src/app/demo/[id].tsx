@@ -32,11 +32,13 @@ export default function DemoScreen() {
   return (
     <View style={styles.container}>
       <DemoComponent />
-      <View style={[styles.closeButton, { top: insets.top + 8, right: 16 + insets.right }]}>
-        <GlassButton onPress={close} hitSlop={12} accessibilityLabel="Close demo">
-          <SymbolView name="xmark" size={15} weight="semibold" tintColor={PlatformColor('label')} />
-        </GlassButton>
-      </View>
+      {demo.hideClose ? null : (
+        <View style={[styles.closeButton, { top: insets.top + 8, right: 16 + insets.right }]}>
+          <GlassButton onPress={close} hitSlop={12} accessibilityLabel="Close demo">
+            <SymbolView name="xmark" size={15} weight="semibold" tintColor={PlatformColor('label')} />
+          </GlassButton>
+        </View>
+      )}
     </View>
   );
 }

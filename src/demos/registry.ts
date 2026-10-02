@@ -13,6 +13,8 @@ export type Demo = {
   description: string;
   author?: string;
   component: ComponentType;
+  /** No floating close button: the demo pushes in and closes with the edge swipe instead */
+  hideClose?: boolean;
 };
 
 /**
@@ -27,6 +29,7 @@ export const demos: Demo[] = [
       'Real-map 3D Saigon with live trains (three.js + TypeGPU on WebGPU) and an Apple Maps-style native sheet.',
     author: 'VG Team',
     component: MetroLive,
+    hideClose: true,
   },
   {
     id: 'metro-onboard',
