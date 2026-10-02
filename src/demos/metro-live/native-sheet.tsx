@@ -4,14 +4,17 @@ import {
   ReanimatedTrueSheetProvider,
   useReanimatedTrueSheet,
 } from '@lodev09/react-native-true-sheet/reanimated';
-import { useEffect, useRef, useState } from 'react';
+import { memo, startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
+  Easing,
   FadeIn,
-  FadeOut,
-  LinearTransition,
+  interpolate,
   useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
@@ -48,7 +51,14 @@ type Props = {
   sideWidth: number;
   /** Side layout: where the sheet's column starts, below the header card */
   sideTop: number;
+  /** Detent the sheet is heading for or rests at (0 collapsed, 1 half, 2 full; -1 while dragged) */
+  onDetent?: (index: number) => void;
 };
+
+/** iOS-like ease for the search field and Cancel */
+const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
+/** Room the Cancel button takes beside the search field */
+const CANCEL_W = 68;
 
 /**
  * Apple Maps-style status sheet on a real UISheetPresentationController (TrueSheet):
@@ -79,6 +89,7 @@ function SheetBody({
   sideInset,
   sideWidth,
   sideTop,
+  onDetent,
 }: Props) {
   const side = sideWidth > 0;
   // With a side cutout the full-height sheet would slide under it, so it stops just below
@@ -91,8 +102,15 @@ function SheetBody({
   const ref = useRef<TrueSheet>(null);
   const input = useRef<TextInput>(null);
   const [query, setQuery] = useState('');
+  // Typing never waits for the results list: it filters a frame later, at low priority
+  const deferredQuery = useDeferredValue(query);
   const [searching, setSearching] = useState(false);
+  const searchProgress = useSharedValue(0);
   const { animatedPosition } = useReanimatedTrueSheet();
+
+  useEffect(() => {
+    searchProgress.set(withTiming(searching ? 1 : 0, { duration: 260, easing: EASE }));
+  }, [searching, searchProgress]);
 
   // The native sheet reports its top edge on the UI thread; turn it into a visible height
   useAnimatedReaction(
@@ -106,64 +124,99 @@ function SheetBody({
     }
   );
 
+  const goTo = (detent: number) => {
+    onDetent?.(detent);
+    ref.current?.resize(detent);
+  };
+
+  const startSearch = () => {
+    if (searching) return;
+    goTo(LARGE);
+    // The sheet and keyboard start moving first; the list switches over in the next frames
+    startTransition(() => setSearching(true));
+  };
+
   // A focus that lands while the JS thread is busy (the city is still being built) can miss
   // onFocus; the keyboard showing up for our field is the reliable signal
+  const startSearchRef = useRef(startSearch);
+  useEffect(() => {
+    startSearchRef.current = startSearch;
+  });
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardWillShow', () => {
-      if (input.current?.isFocused()) {
-        setSearching(true);
-        ref.current?.resize(LARGE);
-      }
+      if (input.current?.isFocused()) startSearchRef.current();
     });
     return () => sub.remove();
   }, []);
 
-  const startSearch = () => {
-    setSearching(true);
-    ref.current?.resize(LARGE);
-  };
-  const endSearch = (detent: number) => {
+  const endSearch = (detent: number, then?: () => void) => {
     Keyboard.dismiss();
     input.current?.blur();
-    setQuery('');
-    setSearching(false);
-    ref.current?.resize(detent);
+    input.current?.clear();
+    // Spread the work over consecutive frames so none of them stalls: the 3D scene resumes
+    // under the still-covering sheet, then the live status comes back (the collapsed detent
+    // measures "Your train"), then the sheet moves, then the camera sets off
+    onDetent?.(detent);
+    requestAnimationFrame(() => {
+      setQuery('');
+      setSearching(false);
+      requestAnimationFrame(() => {
+        ref.current?.resize(detent);
+        if (then) setTimeout(then, 120);
+      });
+    });
   };
   const pickStation = (i: number) => {
-    onStation(i);
-    endSearch(0);
+    Presets.System.selection();
+    endSearch(0, () => onStation(i));
   };
   const pickTrain = (k: number) => {
     onTrain(k);
     if (searching) endSearch(MEDIUM);
   };
+  const onSubmit = () => {
+    const first = matchStations(query)[0];
+    if (first !== undefined) pickStation(first);
+  };
+
+  // The field shortens to make room for Cancel, which slides in from the right
+  const fieldStyle = useAnimatedStyle(() => ({ marginRight: searchProgress.get() * CANCEL_W }));
+  const cancelStyle = useAnimatedStyle(() => ({
+    opacity: searchProgress.get(),
+    transform: [{ translateX: interpolate(searchProgress.get(), [0, 1], [CANCEL_W * 0.6, 0]) }],
+  }));
+  // Live status fades out as the results take over
+  const statusStyle = useAnimatedStyle(() => ({ opacity: 1 - searchProgress.get() }));
 
   // The keyboard lifts the sheet to the very top; keep clear of a side camera column while searching
   const cutoutPad = searching && !side ? sideInset : 0;
   const header = (
     <View style={[styles.header, { paddingRight: 16 + cutoutPad }]}>
-      <View style={styles.searchField}>
+      <Animated.View style={[styles.searchField, fieldStyle]}>
         <SymbolView name="magnifyingglass" size={17} tintColor={MUTED} />
         <TextInput
           ref={input}
-          value={query}
+          // Uncontrolled: the native field never waits for a React round trip while typing
+          defaultValue=""
           onChangeText={setQuery}
           onFocus={startSearch}
+          onSubmitEditing={onSubmit}
           placeholder="Search stations"
           placeholderTextColor={MUTED}
           returnKeyType="search"
           autoCorrect={false}
+          autoCapitalize="none"
           clearButtonMode="while-editing"
           style={styles.searchInput}
         />
-      </View>
-      {searching ? (
-        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)}>
-          <Pressable onPress={() => endSearch(MEDIUM)} hitSlop={10}>
-            <Text style={styles.cancel}>Cancel</Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
+      </Animated.View>
+      <Animated.View
+        pointerEvents={searching ? 'auto' : 'none'}
+        style={[styles.cancelSlot, { right: 16 + cutoutPad }, cancelStyle]}>
+        <Pressable onPress={() => endSearch(MEDIUM)} hitSlop={10}>
+          <Text style={styles.cancel}>Cancel</Text>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 
@@ -185,7 +238,12 @@ function SheetBody({
       dimmedDetentIndex={LARGE}
       scrollable
       scrollableOptions={{ topScrollEdgeEffect: 'soft' }}
-      onDetentChange={() => Presets.System.selection()}>
+      onDetentChange={(e) => {
+        Presets.System.selection();
+        onDetent?.(e.nativeEvent.index);
+      }}
+      // A drag away from full height brings the map (and its rendering) back straight away
+      onDragBegin={() => onDetent?.(-1)}>
       {/* A sibling above the ScrollView: the sheet pins the scroll view below it */}
       {header}
       <ScrollView
@@ -193,26 +251,26 @@ function SheetBody({
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingRight: 12 + cutoutPad }]}>
-        {searching ? (
-          <StationResults scene={scene} query={query} onPick={pickStation} />
-        ) : (
-          <>
-            <TrueSheetPeek>
-              <Text style={styles.section}>Your train</Text>
-              {scene ? (
-                <StatusRows scene={scene} follow={follow} onPress={pickTrain} only="mine" />
-              ) : (
-                <View style={styles.placeholderRow} />
-              )}
-            </TrueSheetPeek>
-            <Text style={styles.section}>Line status · {TRAIN_COUNT} trains</Text>
-            {scene ? <StatusRows scene={scene} follow={follow} onPress={pickTrain} only="others" /> : null}
-            <Text style={styles.section}>Stations</Text>
-            <StationResults scene={scene} query="" onPick={pickStation} />
-            <Text style={styles.footnote}>
-              Simulated live data · timetable sped up for the demo{'\n'}Map © OpenStreetMap contributors
-            </Text>
-          </>
+        {/* Everything stays mounted: searching only hides the live status and filters the
+            station rows, so focusing the field or typing never rebuilds the list */}
+        <Animated.View style={[searching && styles.hidden, statusStyle]}>
+          <TrueSheetPeek>
+            <Text style={styles.section}>Your train</Text>
+            {scene ? (
+              <StatusRows scene={scene} follow={follow} onPress={pickTrain} only="mine" />
+            ) : (
+              <View style={styles.placeholderRow} />
+            )}
+          </TrueSheetPeek>
+          <Text style={styles.section}>Line status · {TRAIN_COUNT} trains</Text>
+          {scene ? <StatusRows scene={scene} follow={follow} onPress={pickTrain} only="others" /> : null}
+        </Animated.View>
+        <Text style={styles.section}>{searching && deferredQuery.trim() ? 'Results' : 'Stations'}</Text>
+        <StationResults scene={scene} query={searching ? deferredQuery : ''} onPick={pickStation} />
+        {searching ? null : (
+          <Text style={styles.footnote}>
+            Simulated live data · timetable sped up for the demo{'\n'}Map © OpenStreetMap contributors
+          </Text>
         )}
       </ScrollView>
     </ReanimatedTrueSheet>
@@ -221,6 +279,13 @@ function SheetBody({
 
 /** Lowercase, accent-free text, so "ben thanh" finds "Bến Thành" */
 const fold = (text: string) => toAscii(text).toLowerCase();
+const SEARCH_TEXT = STATIONS.map((s) => fold(`${s.name} ${s.english ?? ''} ${s.code}`));
+
+/** Indices of the stations matching `query` (all of them for an empty query) */
+function matchStations(query: string) {
+  const q = fold(query.trim());
+  return STATIONS.map((_, i) => i).filter((i) => !q || SEARCH_TEXT[i].includes(q));
+}
 
 function StationResults({
   scene,
@@ -232,25 +297,27 @@ function StationResults({
   onPick: (i: number) => void;
 }) {
   const q = fold(query.trim());
-  const matches = STATIONS.map((s, i) => ({ s, i })).filter(
-    ({ s }) => !q || fold(`${s.name} ${s.english ?? ''} ${s.code}`).includes(q)
-  );
-  if (matches.length === 0) {
-    return (
-      <Animated.View entering={FadeIn.duration(200)} style={styles.empty}>
-        <SymbolView name="tram.fill" size={28} tintColor="#C4C9D0" />
-        <Text style={styles.emptyTitle}>No stations match “{query.trim()}”</Text>
-        <Text style={styles.emptySub}>Try a name without accents, like “thu duc”.</Text>
-      </Animated.View>
-    );
-  }
+  const visible = new Set(matchStations(query));
   return (
     <>
-      {matches.map(({ s, i }) => (
-        <Animated.View key={s.code} layout={LinearTransition.springify().damping(22)} entering={FadeIn.duration(160)}>
-          <StationRow index={i} scene={scene} query={q} onPress={() => onPick(i)} />
-        </Animated.View>
+      {/* Rows that don't match are hidden, not unmounted: their live countdowns keep running */}
+      {STATIONS.map((s, i) => (
+        <StationRow
+          key={s.code}
+          index={i}
+          scene={scene}
+          query={visible.has(i) ? q : ''}
+          hidden={!visible.has(i)}
+          onPick={onPick}
+        />
       ))}
+      {visible.size === 0 ? (
+        <Animated.View entering={FadeIn.duration(180)} style={styles.empty}>
+          <SymbolView name="tram.fill" size={28} tintColor="#C4C9D0" />
+          <Text style={styles.emptyTitle}>No stations match “{query.trim()}”</Text>
+          <Text style={styles.emptySub}>Try a name without accents, like “thu duc”.</Text>
+        </Animated.View>
+      ) : null}
     </>
   );
 }
@@ -263,16 +330,18 @@ function highlight(name: string, q: string) {
   return [name.slice(0, at), name.slice(at, at + q.length), name.slice(at + q.length)] as const;
 }
 
-function StationRow({
+const StationRow = memo(function StationRow({
   index,
   scene,
   query,
-  onPress,
+  hidden,
+  onPick,
 }: {
   index: number;
   scene: LiveScene | null;
   query: string;
-  onPress: () => void;
+  hidden: boolean;
+  onPick: (i: number) => void;
 }) {
   const station = STATIONS[index];
   // "here" while a train is boarding, otherwise seconds until the next arrival from either side
@@ -295,7 +364,9 @@ function StationRow({
   ].filter(Boolean);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.stationRow, pressed && styles.pressed]}>
+    <Pressable
+      onPress={() => onPick(index)}
+      style={({ pressed }) => [styles.stationRow, pressed && styles.pressed, hidden && styles.hidden]}>
       <View style={styles.code}>
         <Text style={styles.codeText}>{station.code}</Text>
       </View>
@@ -322,7 +393,7 @@ function StationRow({
       ) : null}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   header: {
@@ -350,9 +421,18 @@ const styles = StyleSheet.create({
     color: INK,
     fontSize: 17,
   },
+  cancelSlot: {
+    position: 'absolute',
+    top: 18,
+    height: 44,
+    justifyContent: 'center',
+  },
   cancel: {
     color: '#0A84FF',
     fontSize: 17,
+  },
+  hidden: {
+    display: 'none',
   },
   content: {
     paddingHorizontal: 12,

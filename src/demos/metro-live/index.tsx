@@ -393,6 +393,8 @@ export default function MetroLive() {
         sideInset={insets.right}
         sideWidth={sideLayout ? SIDE_SHEET_WIDTH : 0}
         sideTop={insets.top + 8 + HEADER_HEIGHT + 10}
+        // A full-height sheet hides the map: pause the 3D scene so the JS thread serves the UI
+        onDetent={(index) => scene?.setPaused(!sideLayout && index === 2)}
       />
     </View>
   );
@@ -584,11 +586,7 @@ function MapControls({
           accessibilityLabel="Follow my train"
           accessibilityState={{ selected: following }}
           style={({ pressed }) => [styles.mapControl, pressed && styles.mapControlPressed]}>
-          <SymbolView
-            name={following ? 'location.fill' : 'location'}
-            size={20}
-            tintColor={following ? GREEN : idle}
-          />
+          <SymbolView name={following ? 'location.fill' : 'location'} size={20} tintColor={following ? GREEN : idle} />
         </Pressable>
       </GlassView>
     </View>

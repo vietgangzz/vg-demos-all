@@ -285,7 +285,10 @@ export function createLiveScene(
   let lastSeconds = 0;
   const busy = new Uint8Array(stationAnchors.length);
 
+  // Paused while a full-height sheet covers the map: the JS thread then belongs to the UI
+  let paused = false;
   renderer.setAnimationLoop(() => {
+    if (paused) return;
     // Same clock as the status sheet, so the list and the 3D view agree
     const seconds = performance.now() / 1000;
     const dt = lastSeconds ? Math.min(0.05, seconds - lastSeconds) : 1 / 60;
@@ -552,6 +555,10 @@ export function createLiveScene(
     },
     setNight(on: boolean) {
       nightTarget = on ? 1 : 0;
+    },
+    /** Stop drawing (and simulating) while the map is hidden; the timetable keeps real time */
+    setPaused(next: boolean) {
+      paused = next;
     },
     setOnFrame(cb: ((info: FrameInfo) => void) | null) {
       onFrame = cb;
