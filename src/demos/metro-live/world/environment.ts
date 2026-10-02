@@ -4,6 +4,7 @@ import type { LineModel } from '../line-model';
 import {
   createGlowMaterial,
   createGroundMaterial,
+  createLawnMaterial,
   createNightLightMaterial,
   createWaterAreaMaterial,
 } from '../shaders';
@@ -72,7 +73,7 @@ export function buildEnvironment(scene: THREE.Scene, model: LineModel) {
   for (const [kind, geos] of byKind) {
     const mesh = new THREE.Mesh(
       merge(geos),
-      new THREE.MeshStandardMaterial({ color: GREEN[kind] ?? GREEN.grass, roughness: 1 })
+      createLawnMaterial(GREEN[kind] ?? GREEN.grass, kind === 'golf' || kind === 'pitch')
     );
     scene.add(flat(mesh, kind === 'pitch' ? -7 : -8));
   }

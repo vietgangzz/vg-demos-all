@@ -111,4 +111,14 @@ node scripts/osm/build.mjs
 
 Map data © OpenStreetMap contributors, available under the [ODbL](https://www.openstreetmap.org/copyright).
 
+Trees, palms and flower beds use the CC0 [Ultimate Stylized Nature pack](https://poly.pizza/bundle/Ultimate-Stylized-Nature-Pack-zyIyYd9yGr) by Quaternius. Broadleaf crowns are leaf cards cut out of its leaf texture, wrapped around a small core. Coconut palms, the pack's own meshes, line the river promenades and Thảo Điền. The textures and palm meshes are baked into `src/demos/metro-live/data/foliage.json`, so no image loader is needed at runtime. To rebuild that file (needs ImageMagick):
+
+```bash
+node scripts/foliage/fetch.mjs
+```
+
+```bash
+node scripts/foliage/build.mjs
+```
+
 In development builds the scene is exposed for QA from the JS debugger: `metroScene.lookAt(x, z, zoom, pitch?)` flies the camera anywhere, `metroScene.debugDrawCalls()` and `debugTriangles()` report render cost, and `globalThis.__cityTimings` holds the build time of each step.

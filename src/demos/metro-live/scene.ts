@@ -5,7 +5,7 @@ import { LINE_1 } from '@/demos/metro/line-1';
 import { createLineModel, createTimetable, type TrainState } from './line-model';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
-import { createPulseMaterial, createXrayMaterial, nightUniform } from './shaders';
+import { createXrayMaterial, nightUniform } from './shaders';
 import { buildCity } from './world/city';
 import { buildEnvironment } from './world/environment';
 import { ribbonGeometry } from './world/geometry';
@@ -203,18 +203,13 @@ export function createLiveScene(
   const proxyScale = new THREE.Vector3();
   const passengers = buildPassengers(scene, platformSpots);
 
-  const pulse = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), createPulseMaterial([0.13, 0.7, 0.4]));
-  pulse.rotation.x = -Math.PI / 2;
-  pulse.renderOrder = 2;
-  scene.add(pulse);
-
   // ---- Camera ------------------------------------------------------------
   const target = new THREE.Vector3(MAP.stations[0].x, 0, MAP.stations[0].y);
   let zoom = controls.zoom.get();
   type Focus = { kind: 'train'; index: number } | { kind: 'point'; point: THREE.Vector3 } | { kind: 'free' };
   let focus: Focus = { kind: 'train', index: YOUR_TRAIN };
   // A flight eases the target from where it was to the new focus with a zoom "hop"
-  let flight: { from: THREE.Vector3; start: number; duration: number; hop: number } | null = null;
+  let flight: { from: THREE.Vector3; fromZoom: number; start: number; duration: number; hop: number } | null = null;
   let lastPanX = controls.panX.get();
   let lastPanZ = controls.panZ.get();
   let idleSince = 0;
@@ -275,7 +270,15 @@ export function createLiveScene(
 
   const startFlight = (seconds: number, hop: number) => {
     // Longer hops take a little longer, like Maps flying between places
-    flight = { from: target.clone(), start: seconds, duration: 1.15 + Math.min(1.1, hop * 0.08), hop };
+    // The hop only adds what neither end of the flight already shows: none out of the overview
+    const peak = Math.max(0, hop - Math.max(zoom, controls.zoom.get()));
+    flight = {
+      from: target.clone(),
+      fromZoom: zoom,
+      start: seconds,
+      duration: 1.15 + Math.min(1.1, hop * 0.08),
+      hop: peak,
+    };
   };
   /** Zoom-out "hop" for a flight: pull back enough to see where you are going */
   const flightHop = (from: THREE.Vector3, to: THREE.Vector3) =>
@@ -337,9 +340,6 @@ export function createLiveScene(
     // uv.x = 0 is the right-hand edge of the deck (looking towards Suối Tiên)
     deckUniforms.track.value = fs.dir === 1 ? 0.26 : 0.74;
 
-    const lead = trains[glowTrain].cars[0].position;
-    pulse.position.set(lead.x, lead.y - (fs.u < model.portalU ? 0 : 0.3) + 0.02, lead.z);
-
     // ---- Camera: pan (with fling), flights, follow ----
     const dx = controls.panX.get() - lastPanX;
     const dz = controls.panZ.get() - lastPanZ;
@@ -354,17 +354,26 @@ export function createLiveScene(
       target.x += dx;
       target.z += dz;
       idleSince = seconds;
-    } else if (flight) {
-      const t = Math.min(1, (seconds - flight.start) / flight.duration);
-      const e = easeInOut(t);
-      target.lerpVectors(flight.from, focusPoint(desired), e);
-      if (t >= 1) flight = null;
-    } else if (focus.kind !== 'free') {
-      target.lerp(focusPoint(desired), damp(5, dt));
     }
-
-    zoom += (controls.zoom.get() - zoom) * damp(9, dt);
-    const hop = flight ? Math.sin(Math.PI * Math.min(1, (seconds - flight.start) / flight.duration)) * flight.hop : 0;
+    let hop = 0;
+    if (flight) {
+      // Pan and zoom share the flight, like Maps: flying in, the camera travels while still high
+      // and settles in at the end; flying out, it pulls back first. Zoom eases in log space, so
+      // the city scales at an even rate instead of snapping in before the camera moves.
+      const t = Math.min(1, (seconds - flight.start) / flight.duration);
+      const toZoom = controls.zoom.get();
+      const zoomingIn = toZoom < flight.fromZoom * 0.9;
+      const zoomingOut = toZoom > flight.fromZoom * 1.1;
+      const move = easeInOut(zoomingIn ? Math.min(1, t / 0.75) : zoomingOut ? Math.max(0, (t - 0.25) / 0.75) : t);
+      const scale = easeInOut(zoomingIn ? Math.max(0, (t - 0.2) / 0.8) : zoomingOut ? Math.min(1, t / 0.75) : t);
+      target.lerpVectors(flight.from, focusPoint(desired), move);
+      zoom = Math.exp(THREE.MathUtils.lerp(Math.log(flight.fromZoom), Math.log(toZoom), scale));
+      hop = Math.sin(Math.PI * t) * flight.hop;
+      if (t >= 1) flight = null;
+    } else {
+      if (focus.kind !== 'free') target.lerp(focusPoint(desired), damp(5, dt));
+      zoom += (controls.zoom.get() - zoom) * damp(9, dt);
+    }
     const distance = DISTANCE_PER_ZOOM * (zoom + hop);
     city.setCameraDistance(distance);
     const distant = distance > 470;

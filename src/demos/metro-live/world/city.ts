@@ -5,19 +5,24 @@ import type { LineModel } from '../line-model';
 import {
   createBuildingMaterial,
   createContactShadowMaterial,
+  createFlowerMaterial,
   createFoliageMaterial,
   createGlassMaterial,
+  createLeafMaterial,
+  createPalmMaterial,
   createGlowMaterial,
   createNightLightMaterial,
   createRoadMaterial,
 } from '../shaders';
 import { buildBridges } from './bridges';
-import { instanced, merge, mulberry32, ribbonSides, treeCrownGeometry } from './geometry';
+import { flowerBedGeometry, foliageTexture, leafCrownGeometry, palmGeometry, PALM_VARIANTS } from './foliage';
+import { instanced, merge, mulberry32, ribbonSides } from './geometry';
 import { buildLandmarks, LANDMARK_IDS, LANDMARK_KEEP_OUT } from './landmarks';
 import { createRoads, isWater, roadClearance, sampleRoad, TUNNEL_CLEARANCE, type Road } from './layout';
 import { isBuiltUp, landKindAt } from './landuse';
 import {
   GridIndex,
+  isWaterArea,
   MAP,
   METRES_PER_UNIT,
   pointInPolygon,
@@ -31,7 +36,7 @@ import { buildSuoiTien } from './suoi-tien';
 import { buildTunnels } from './tunnels';
 
 type Box = { x: number; z: number; w: number; d: number; h: number; color: string; yaw: number };
-type Tree = { x: number; z: number; s: number; color: string };
+type Tree = { x: number; z: number; s: number; color: string; palm?: boolean };
 
 const PASTELS = [
   '#F6E7C8',
@@ -570,6 +575,7 @@ function buildTrees(
 ) {
   const { near, trackDistance, inFootprint, inThemePark, rand } = ctx;
   const trees: Tree[] = [];
+  const flowers: { position: THREE.Vector3; yaw: number; scale: THREE.Vector3 }[] = [];
   const free = (x: number, z: number) =>
     trackDistance(x, z, 4) > 3.2 &&
     !isWater(x, z, 0.5) &&
@@ -587,6 +593,13 @@ function buildTrees(
           : LEAVES[Math.floor(rand() * LEAVES.length)];
   };
 
+  // Coconut palms line the Saigon River promenades and Thảo Điền's lanes
+  const thaoDien = MAP.stations[5];
+  const riverside = (x: number, z: number) =>
+    [0, 1, 2, 3].some((k) => isWaterArea(x + Math.cos(k * 1.571) * 9, z + Math.sin(k * 1.571) * 9));
+  const palmChance = (x: number, z: number) =>
+    riverside(x, z) ? 0.75 : Math.hypot(x - thaoDien.x, z - thaoDien.y) < 190 ? 0.3 : 0.02;
+
   // Street trees (sao, dầu, me) on the sidewalks of the avenues
   for (const road of roads) {
     if (road.bridge || road.tunnel || road.cut || (road.kind === 'street' && road.osm !== 'tertiary')) continue;
@@ -600,7 +613,7 @@ function buildTrees(
       const x = p.x + Math.sin(yaw) * off * side;
       const z = p.z + Math.cos(yaw) * off * side;
       if (!free(x, z)) continue;
-      trees.push({ x, z, s: 0.5 + rand() * 0.35, color: pick() });
+      trees.push({ x, z, s: 0.5 + rand() * 0.35, color: pick(), palm: rand() < palmChance(x, z) });
     }
   }
 
@@ -620,20 +633,37 @@ function buildTrees(
       const x = minX + rand() * w;
       const z = minZ + rand() * d;
       if (!pointInPolygon(x, z, g) || !near(x, z, CORRIDOR + 60) || !free(x, z)) continue;
-      trees.push({ x, z, s: 0.55 + rand() * 0.55, color: pick() });
+      trees.push({ x, z, s: 0.55 + rand() * 0.55, color: pick(), palm: rand() < palmChance(x, z) * 0.5 });
+    }
+    // Flower beds along the lawns of the city's parks and gardens
+    if (g.kind === 'park' || g.kind === 'grass') {
+      const beds = Math.min(30, Math.abs(ringArea(g.outer)) / 260);
+      for (let i = 0; i < beds; i++) {
+        const x = minX + rand() * w;
+        const z = minZ + rand() * d;
+        if (!pointInPolygon(x, z, g) || !near(x, z, CORRIDOR) || !free(x, z)) continue;
+        const size = 1 + rand() * 0.6;
+        flowers.push({
+          position: new THREE.Vector3(x, 0, z),
+          yaw: rand() * 6.283,
+          scale: new THREE.Vector3(size, size, size),
+        });
+      }
     }
   }
 
-  // Near LOD: a canopy of four smooth leaf puffs, in tiles so off-screen trees are culled.
+  // Near LOD: leaf-card crowns (world/foliage.ts), in tiles so off-screen trees are culled.
   // Far LOD: one 20-triangle blob per tree for distant views (city.setCameraDistance).
-  const crownItems = trees.map((t, i) => ({
+  const broadleaf = trees.filter((t) => !t.palm);
+  const palms = trees.filter((t) => t.palm);
+  const crownItems = broadleaf.map((t, i) => ({
     position: new THREE.Vector3(t.x, 0, t.z),
     yaw: (i * 2.399) % (Math.PI * 2),
     scale: new THREE.Vector3(t.s, t.s * (0.92 + ((i * 7) % 5) * 0.04), t.s),
     color: t.color,
   }));
-  const puffs = treeCrownGeometry();
-  const foliage = createFoliageMaterial();
+  const crown = leafCrownGeometry();
+  const leaves = createLeafMaterial(foliageTexture('leaf'));
   const tiles = new Map<string, typeof crownItems>();
   for (const it of crownItems) {
     const key = `${Math.floor(it.position.x / TILE)},${Math.floor(it.position.z / TILE)}`;
@@ -641,13 +671,56 @@ function buildTrees(
     tiles.get(key)!.push(it);
   }
   for (const items of tiles.values()) {
-    const mesh = instanced(puffs, foliage, items);
+    const mesh = instanced(crown, leaves, items);
     mesh.computeBoundingSphere();
     mesh.userData.lod = 'near';
     scene.add(mesh);
   }
+
+  // Palms: five real Quaternius palms, 10–15 m tall, each leaning its own way
+  const palmMaterial = createPalmMaterial(foliageTexture('palm'));
+  for (let v = 0; v < PALM_VARIANTS; v++) {
+    const items = palms
+      .filter((_, i) => i % PALM_VARIANTS === v)
+      .map((t, i) => {
+        const h = 2.3 + ((t.s - 0.5) / 0.6) * 1.1;
+        return {
+          position: new THREE.Vector3(t.x, 0, t.z),
+          yaw: (i * 2.399 + v) % (Math.PI * 2),
+          scale: new THREE.Vector3(h, h, h),
+        };
+      });
+    if (!items.length) continue;
+    const mesh = instanced(palmGeometry(v), palmMaterial, items);
+    mesh.computeBoundingSphere();
+    mesh.userData.lod = 'near';
+    scene.add(mesh);
+  }
+
+  if (__DEV__) {
+    (globalThis as { __foliage?: object }).__foliage = {
+      trees: broadleaf.length,
+      palms: palms.length,
+      beds: flowers.length,
+    };
+  }
+  if (flowers.length) {
+    const beds = instanced(flowerBedGeometry(3), createFlowerMaterial(foliageTexture('flowers')), flowers);
+    beds.computeBoundingSphere();
+    beds.userData.lod = 'near';
+    scene.add(beds);
+  }
+
+  const foliage = createFoliageMaterial();
   const blob = new THREE.IcosahedronGeometry(1.15, 0).translate(0, 1.45, 0);
-  const far = instanced(blob, foliage, crownItems);
+  const far = instanced(blob, foliage, [
+    ...crownItems,
+    ...palms.map((t) => ({
+      position: new THREE.Vector3(t.x, 1.2, t.z),
+      scale: new THREE.Vector3(0.8, 0.45, 0.8),
+      color: '#86C27A',
+    })),
+  ]);
   far.userData.lod = 'far';
   far.visible = false;
   scene.add(far);
@@ -657,7 +730,10 @@ function buildTrees(
     instanced(
       trunkGeo,
       new THREE.MeshStandardMaterial({ color: '#9C8A76', roughness: 0.9 }),
-      trees.map((t) => ({ position: new THREE.Vector3(t.x, 0, t.z), scale: new THREE.Vector3(t.s, t.s * 1.3, t.s) }))
+      broadleaf.map((t) => ({
+        position: new THREE.Vector3(t.x, 0, t.z),
+        scale: new THREE.Vector3(t.s, t.s * 1.3, t.s),
+      }))
     )
   );
   return trees;

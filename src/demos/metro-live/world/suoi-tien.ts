@@ -1,8 +1,9 @@
 import * as THREE from 'three/webgpu';
 
-import { createFoliageMaterial, createNightLightMaterial, createWaterMaterial } from '../shaders';
+import { createLeafMaterial, createNightLightMaterial, createWaterMaterial } from '../shaders';
+import { foliageTexture, leafCrownGeometry } from './foliage';
 import { strut } from './bridges';
-import { instanced, mergeByMaterial, mulberry32, treeCrownGeometry } from './geometry';
+import { instanced, mergeByMaterial, mulberry32 } from './geometry';
 import { isWater } from './layout';
 import { MAP, METRES_PER_UNIT, pointInRing, ringCentroid } from './map';
 
@@ -270,7 +271,7 @@ export function buildSuoiTien(scene: THREE.Scene) {
       color: ['#86BD7C', '#7FB574', '#9CCB8F', '#F2C94C'][Math.floor(rand() * 4)],
     });
   }
-  scene.add(instanced(treeCrownGeometry(), createFoliageMaterial(), trees));
+  scene.add(instanced(leafCrownGeometry(), createLeafMaterial(foliageTexture('leaf')), trees));
 
   for (const mesh of mergeByMaterial(root)) scene.add(mesh);
 

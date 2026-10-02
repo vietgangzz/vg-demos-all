@@ -228,7 +228,9 @@ export function createDeckMaterial() {
     const t = t3.time.$;
     const along = uv.y;
     const onTrack = 1.0 - std.smoothstep(0.1, 0.14, std.abs(uv.x - trackA.$));
-    const inRoute = std.step(loA.$, along) * std.step(along, hiA.$);
+    // Fades in and out over ~1.5 units at both ends instead of cutting off
+    const inRoute =
+      std.smoothstep(loA.$ - 0.2, loA.$ + 1.5, along) * (1.0 - std.smoothstep(hiA.$ - 1.5, hiA.$ + 0.2, along));
     const flow = std.fract(along * 0.35 - t * 0.9 * dirA.$);
     const pulse = std.smoothstep(0.0, 0.5, flow) * (1.0 - std.smoothstep(0.5, 1.0, flow));
     const glow = inRoute * onTrack * (0.3 + pulse * 0.7);
@@ -251,6 +253,104 @@ export function createFoliageMaterial() {
   material.colorNode = TSL.vec3(lift, lift.mul(1.01), lift.mul(0.97));
   // Soft translucency: leaves never go fully dark in shade
   material.emissiveNode = TSL.vec3(0.05, 0.07, 0.04).mul(TSL.float(1).sub(TSL.smoothstep(-0.2, 0.8, up)));
+  return material;
+}
+
+/** Shared by the leaf and palm materials: `leaf` is 0 on solid parts, > 0 on cut-out leaf cards */
+const leafAttribute = () => TSL.attribute<'float'>('leaf', 'float');
+
+/**
+ * Broadleaf crowns (world/foliage.ts leafCrownGeometry): leaf-cluster cards cut out of the
+ * Quaternius leaf texture around a dark core. Normals point out from the crown centre, so the
+ * tree lights as one soft ball; each card's leaves get a darker rim so clusters read up close.
+ * The instance colour picks the species.
+ */
+export function createLeafMaterial(map: THREE.Texture) {
+  const material = new THREE.MeshStandardNodeMaterial({
+    roughness: 0.92,
+    metalness: 0,
+    alphaTest: 0.5,
+  });
+  const leaf = leafAttribute();
+  const card = TSL.step(0.5, leaf);
+  const tex = TSL.texture(map, TSL.uv());
+  material.opacityNode = TSL.mix(TSL.float(1), tex.a, card);
+  const up = TSL.normalLocal.y;
+  const height = TSL.smoothstep(0.6, 2.6, TSL.positionLocal.y);
+  const light = TSL.mix(TSL.float(0.72), TSL.float(1.14), TSL.smoothstep(-0.75, 0.95, up)).add(height.mul(0.08));
+  const rim = TSL.mix(TSL.float(0.86), TSL.float(1), TSL.smoothstep(0.55, 0.95, tex.a));
+  const shade = TSL.mix(TSL.float(0.74), leaf.mul(rim), card).mul(light);
+  material.colorNode = TSL.vec3(shade, shade.mul(1.01), shade.mul(0.97));
+  // Soft translucency: leaves never go fully dark in shade
+  material.emissiveNode = TSL.vec3(0.05, 0.07, 0.04).mul(TSL.float(1).sub(TSL.smoothstep(-0.2, 0.8, up)));
+  return material;
+}
+
+/** Coconut palms: textured fronds (double sided, cut out) on a ringed grey-brown trunk */
+export function createPalmMaterial(map: THREE.Texture) {
+  const material = new THREE.MeshStandardNodeMaterial({
+    roughness: 0.9,
+    metalness: 0,
+    alphaTest: 0.5,
+    side: THREE.DoubleSide,
+  });
+  const frond = TSL.step(0.5, leafAttribute());
+  const tex = TSL.texture(map, TSL.uv());
+  material.opacityNode = TSL.mix(TSL.float(1), tex.a, frond);
+  const rings = TSL.smoothstep(0.35, 0.5, TSL.fract(TSL.positionLocal.y.mul(26)).sub(0.5).abs());
+  const trunk = TSL.vec3(0.66, 0.58, 0.48).mul(TSL.float(0.86).add(rings.mul(0.14)));
+  const fronds = tex.rgb.mul(TSL.vec3(1.08, 1.1, 1.0));
+  material.colorNode = TSL.mix(trunk, fronds, frond);
+  material.emissiveNode = TSL.vec3(0.04, 0.06, 0.03).mul(frond);
+  return material;
+}
+
+/** Flower beds: cut-out blossoms and leaves from the Quaternius flower atlas */
+export function createFlowerMaterial(map: THREE.Texture) {
+  const material = new THREE.MeshStandardNodeMaterial({
+    roughness: 0.85,
+    metalness: 0,
+    alphaTest: 0.5,
+  });
+  const tex = TSL.texture(map, TSL.uv());
+  material.opacityNode = tex.a;
+  material.colorNode = tex.rgb.mul(1.12);
+  material.emissiveNode = tex.rgb.mul(0.06);
+  return material;
+}
+
+/**
+ * Lawns: two soft greens in broad drifting patches, and on golf courses and pitches mowing
+ * stripes that fade out with distance (so they never alias into moiré from far away).
+ */
+export function createLawnMaterial(color: string, stripes: boolean) {
+  const material = new THREE.MeshStandardNodeMaterial({
+    roughness: 1,
+    metalness: 0,
+  });
+  const p = TSL.positionWorld;
+  const base = TSL.color(new THREE.Color(color));
+  const n1 = TSL.sin(p.x.mul(0.21).add(TSL.sin(p.z.mul(0.17)).mul(1.7)));
+  const n2 = TSL.sin(p.z.mul(0.19).add(TSL.sin(p.x.mul(0.13)).mul(1.3)));
+  const n3 = TSL.sin(p.x.mul(0.047).sub(p.z.mul(0.061)));
+  const patch = TSL.smoothstep(-0.7, 0.8, n1.mul(n2).add(n3.mul(0.35)));
+  const tone = TSL.mix(TSL.float(0.93), TSL.float(1.05), patch);
+  const fade = TSL.float(1).sub(TSL.smoothstep(50, 200, TSL.cameraPosition.distance(p)));
+  const band = TSL.smoothstep(
+    0.42,
+    0.58,
+    TSL.fract(p.x.mul(0.3).add(p.z.mul(0.18)))
+      .sub(0.5)
+      .abs()
+      .mul(2)
+  );
+  const mown = TSL.float(1).add(
+    band
+      .sub(0.5)
+      .mul(stripes ? 0.07 : 0)
+      .mul(fade)
+  );
+  material.colorNode = base.mul(tone.mul(mown));
   return material;
 }
 
@@ -317,12 +417,14 @@ export function createTunnelMaterial() {
     const t = t3.time.$;
     const x = std.abs(uv.x - 0.5) * 2.0;
     const band = std.exp(x * x * -3.2);
-    // Two lanes (towards Suối Tiên on one side, Bến Thành on the other), soft comets every ~30 m
+    // Two lanes (towards Suối Tiên on one side, Bến Thành on the other), soft comets every ~30 m.
+    // Each comet is a long tail easing into a rounded head: no hard edge where fract() wraps
     const lane = std.step(uv.x, 0.5);
     const flowA = std.fract(uv.y * 0.15 - t * 0.55);
     const flowB = std.fract(uv.y * 0.15 + t * 0.55);
     const comet = std.mix(flowB, flowA, lane);
-    const pulse = std.smoothstep(0.7, 1.0, comet) * (1.0 - std.smoothstep(0.0, 0.25, std.abs(x - 0.45)));
+    const head = std.smoothstep(0.5, 0.86, comet) * (1.0 - std.smoothstep(0.86, 1.0, comet));
+    const pulse = head * (1.0 - std.smoothstep(0.0, 0.25, std.abs(x - 0.45)));
     return std.min(1.0, band * (0.34 + night.$ * 0.2) + pulse * (0.45 + night.$ * 0.3));
   });
   return material;
@@ -334,28 +436,6 @@ export function createXrayMaterial() {
   material.opacityNode = floatNode(() => {
     'use gpu';
     return 0.82;
-  });
-  return material;
-}
-
-/** Expanding rings under the followed train */
-export function createPulseMaterial(color: [number, number, number]) {
-  const material = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
-  const tint = d.vec3f(color[0], color[1], color[2]);
-  material.colorNode = colorNode(() => {
-    'use gpu';
-    return d.vec4f(tint, 1.0);
-  });
-  material.opacityNode = floatNode(() => {
-    'use gpu';
-    const uv = t3.uv().$;
-    const t = t3.time.$;
-    const r = std.length(uv.sub(d.vec2f(0.5, 0.5))) * 2.0;
-    const wave = std.fract(r * 1.6 - t * 0.7);
-    const ring = std.smoothstep(0.0, 0.06, wave) * (1.0 - std.smoothstep(0.06, 0.32, wave));
-    const fade = 1.0 - std.smoothstep(0.55, 1.0, r);
-    const core = 1.0 - std.smoothstep(0.0, 0.22, r);
-    return ring * fade * 0.7 + core * 0.35;
   });
   return material;
 }

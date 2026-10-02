@@ -47,3 +47,6 @@ scripts/osm/.cache/
 
 # Screen recordings from argent
 .argent/recordings/
+
+# Downloaded CC0 foliage models (regenerate with scripts/foliage/fetch.mjs)
+scripts/foliage/.cache/

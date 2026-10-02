@@ -203,18 +203,3 @@ export function mergeByMaterial(root: THREE.Object3D, relativeTo?: THREE.Object3
     return merged;
   });
 }
-
-/** A tree canopy of five smooth leaf puffs (about 2 units across, crown centred 1.45 up) */
-export function treeCrownGeometry() {
-  return merge(
-    (
-      [
-        [0, 1.45, 0, 1.0],
-        [0.62, 1.22, 0.18, 0.72],
-        [-0.5, 1.28, -0.3, 0.74],
-        [0.05, 2.02, -0.08, 0.66],
-        [-0.12, 1.2, 0.6, 0.62],
-      ] as const
-    ).map(([x, y, z, r]) => new THREE.SphereGeometry(r, 9, 6).translate(x, y, z))
-  );
-}
