@@ -34,12 +34,15 @@ import {
   PITCH_RANGE,
   TRAIN_COUNT,
   YOUR_TRAIN,
+  type CinematicMode,
   type FrameInfo,
   type LiveScene,
 } from './scene';
+import { RAIN_HOLD, RAIN_RUN_SPEED, type WeatherPreset } from './cinematic';
+import { tr, useLang } from './i18n';
 import { LoadingOverlay } from './loading';
 import { NativeStatusSheet } from './native-sheet';
-import { useCountdown, useLineKey } from './status';
+import { lineClock, useCountdown, useLineKey } from './status';
 import { GREEN, INK, MUTED, SPRING } from './theme';
 
 const PIN_W = 180;
@@ -61,7 +64,32 @@ const clockMs = () => {
   return Date.now();
 };
 
-export default function MetroLive() {
+/**
+ * `cinematic`: the showcase run for recording videos (Metro · Line 1 Showcase Run). The full Live
+ * UI on a time-lapsed timetable: a Start button sends your train from Suối Tiên to Bến Thành
+ * while the camera directs itself (cinematic.ts). Panning or picking something takes the camera
+ * over; Follow my train hands it back to the director.
+ */
+export default function MetroLive({
+  cinematic = false,
+  weather,
+  from = STATIONS.length - 1,
+  skip = 0,
+}: {
+  cinematic?: boolean;
+  /**
+   * The song-timed runs, a little slower, with autumn trees: 'storm' (Metro · Line 1 Rain Run,
+   * golden hour into a storm, no sheet or chime: filmed under the music) or 'morning' (Metro ·
+   * Line 1 Autumn Morning, a morning shower, with the sheet and the door chime)
+   */
+  weather?: WeatherPreset;
+  /** Station index the run starts from (default Suối Tiên), heading for Bến Thành */
+  from?: number;
+  /** Seconds into the run that Start jumps to: a cut that begins mid-run */
+  skip?: number;
+}) {
+  // The storm run is filmed under the music: just the map, no door chime
+  const bare = weather === 'storm';
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const canvasRef = useRef<CanvasRef>(null);
@@ -71,6 +99,11 @@ export default function MetroLive() {
   const [follow, setFollow] = useState<number | null>(YOUR_TRAIN);
   const [overviewOn, setOverviewOn] = useState(false);
   const [isNight, setIsNight] = useState(false);
+  // The rain run is an autumn evening; elsewhere the city starts green
+  const [isAutumn, setIsAutumn] = useState(!!weather);
+  const lang = useLang();
+  const t = tr(lang);
+  const [cineMode, setCineMode] = useState<CinematicMode>('ready');
   const panX = useSharedValue(0);
   const panZ = useSharedValue(0);
   const zoom = useSharedValue(1);
@@ -84,8 +117,9 @@ export default function MetroLive() {
   const frame = useSharedValue<FrameInfo>({ stations: [], trains: [] });
 
   // Native sheet heights: the camera frames around `sheet` (capped), controls ride `sheetVisible`
-  const sheet = useSharedValue(Math.round(height * 0.5));
-  const sheetVisible = useSharedValue(Math.round(height * 0.5));
+  // The storm run has no sheet: the map gets the whole screen
+  const sheet = useSharedValue(bare ? 0 : Math.round(height * 0.5));
+  const sheetVisible = useSharedValue(bare ? 0 : Math.round(height * 0.5));
   const sideLayout = width > height && width >= 700;
   // Read by the render loop every frame, so a fold or rotation re-centres the camera
   const sideRef = useRef(0);
@@ -129,18 +163,42 @@ export default function MetroLive() {
       });
       // Dev builds expose the scene for QA: metroScene.lookAt(x, z, zoom)
       if (__DEV__) (globalThis as { metroScene?: LiveScene }).metroScene = live;
+      if (cinematic) {
+        live.setCinematic(
+          setCineMode,
+          // The song runs hold at the platform for the first half of the chorus and run slower;
+          // the river run leaves after a short pause at the timetable's speed
+          weather === 'clear'
+            ? { weather, hold: 4, from }
+            : weather
+              ? { weather, speed: RAIN_RUN_SPEED, hold: RAIN_HOLD, from, skip }
+              : { from }
+        );
+        // The sheet, pins and countdowns read the time-lapsed clock the trains run on
+        const scene = live;
+        lineClock.setSource(() => scene.now());
+      }
       setScene(live);
     })();
     return () => {
       cancelled = true;
+      if (cinematic) lineClock.setSource(null);
       live?.dispose();
     };
-  }, [panX, panZ, zoom, sheet, yaw, pitch, frame]);
+  }, [panX, panZ, zoom, sheet, yaw, pitch, frame, cinematic, weather, from, skip]);
+
+  const startRun = () => {
+    Presets.System.impactMedium();
+    scene?.startCinematic();
+  };
 
   // The scene follows the toggle, including a scene recreated after a remount
   useEffect(() => {
     scene?.setNight(isNight);
   }, [scene, isNight]);
+  useEffect(() => {
+    scene?.setAutumn(isAutumn);
+  }, [scene, isAutumn]);
 
   const focusTrain = (k: number) => {
     Presets.System.selection();
@@ -312,7 +370,28 @@ export default function MetroLive() {
 
       {rendered ? null : <LoadingOverlay bottomInset={sideLayout ? 0 : Math.round(height * 0.5)} />}
 
-      {scene ? <YourTrainEvents scene={scene} /> : null}
+      {/* Runs filmed under music (the showcase and the storm) have no door chime */}
+      {scene ? (
+        <YourTrainEvents scene={scene} chime={!cinematic || weather === 'morning' || weather === 'clear'} />
+      ) : null}
+
+      {cinematic && rendered && cineMode === 'ready' ? (
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          style={[styles.startWrap, { top: insets.top + 8 + HEADER_HEIGHT + 14 }]}
+          pointerEvents="box-none">
+          <GlassButton
+            onPress={startRun}
+            accessibilityLabel="Start the run"
+            colorScheme={glassScheme}
+            style={styles.startButton}>
+            <View style={styles.startRow}>
+              <SymbolView name="play.fill" size={17} tintColor={GREEN} />
+              <Text style={[styles.startText, isNight && { color: '#FFFFFF' }]}>{t.start(STATIONS[from].name)}</Text>
+            </View>
+          </GlassButton>
+        </Animated.View>
+      ) : null}
 
       {/* Header: Liquid Glass over the map (frosted fallback before iOS 26) */}
       <GlassView
@@ -331,11 +410,11 @@ export default function MetroLive() {
         </View>
         <View>
           <View style={styles.liveRow}>
-            <Text style={[styles.headerTitle, isNight && { color: '#FFFFFF' }]}>Line 1 Live</Text>
+            <Text style={[styles.headerTitle, isNight && { color: '#FFFFFF' }]}>{t.title}</Text>
             <LiveDot />
           </View>
           <Text style={[styles.headerSub, isNight && { color: 'rgba(235, 240, 255, 0.7)' }]}>
-            Bến Thành ⇄ Suối Tiên · {TRAIN_COUNT} trains
+            Bến Thành ⇄ Suối Tiên · {t.trains(TRAIN_COUNT)}
           </Text>
         </View>
       </GlassView>
@@ -369,6 +448,18 @@ export default function MetroLive() {
             {isNight ? '☾' : '☀︎'}
           </Animated.Text>
         </GlassButton>
+        <GlassButton
+          onPress={() => {
+            Presets.System.selection();
+            setIsAutumn((a) => !a);
+          }}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: isAutumn }}
+          accessibilityLabel={t.autumn}
+          tint={isAutumn ? '#F2B35A' : undefined}
+          colorScheme={glassScheme}>
+          <SymbolView name={isAutumn ? 'leaf.fill' : 'leaf'} size={16} tintColor={isAutumn ? '#8A3B12' : '#2E8B57'} />
+        </GlassButton>
         <Compass yaw={yaw} pitch={pitch} onPress={resetCamera} colorScheme={glassScheme} inline={sideLayout} />
         <MapControls
           overviewOn={overviewOn}
@@ -380,28 +471,30 @@ export default function MetroLive() {
       </Animated.View>
 
       {/* Status sheet: native UISheetPresentationController (TrueSheet), Apple Maps style */}
-      <NativeStatusSheet
-        scene={scene}
-        follow={follow}
-        onTrain={focusTrain}
-        onStation={focusStation}
-        sheet={sheet}
-        sheetVisible={sheetVisible}
-        screenHeight={height}
-        topInset={insets.top}
-        bottomInset={insets.bottom}
-        sideInset={insets.right}
-        sideWidth={sideLayout ? SIDE_SHEET_WIDTH : 0}
-        sideTop={insets.top + 8 + HEADER_HEIGHT + 10}
-        // A full-height sheet hides the map: pause the 3D scene so the JS thread serves the UI
-        onDetent={(index) => scene?.setPaused(!sideLayout && index === 2)}
-      />
+      {bare ? null : (
+        <NativeStatusSheet
+          scene={scene}
+          follow={follow}
+          onTrain={focusTrain}
+          onStation={focusStation}
+          sheet={sheet}
+          sheetVisible={sheetVisible}
+          screenHeight={height}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          sideInset={insets.right}
+          sideWidth={sideLayout ? SIDE_SHEET_WIDTH : 0}
+          sideTop={insets.top + 8 + HEADER_HEIGHT + 10}
+          // A full-height sheet hides the map: pause the 3D scene so the JS thread serves the UI
+          onDetent={(index) => scene?.setPaused(!sideLayout && index === 2)}
+        />
+      )}
     </View>
   );
 }
 
 /** Haptics and the door chime for your train, without re-rendering the screen */
-function YourTrainEvents({ scene }: { scene: LiveScene }) {
+function YourTrainEvents({ scene, chime: withChime }: { scene: LiveScene; chime: boolean }) {
   const chime = useSound(require('@/assets/sounds/door-chime.wav'));
   const key = useLineKey((now) => {
     const s = scene.timetable.stateAt(now, YOUR_TRAIN);
@@ -415,9 +508,9 @@ function YourTrainEvents({ scene }: { scene: LiveScene }) {
   useEffect(() => {
     if (dwelling) {
       Presets.System.notificationSuccess();
-      chime();
+      if (withChime) chime();
     }
-  }, [dwelling, station, chime]);
+  }, [dwelling, station, chime, withChime]);
   useEffect(() => {
     // A soft latch as your train's doors shut
     if (closing) Presets.latch();
@@ -545,8 +638,9 @@ function TrainPin({
 }
 
 function PinCountdown({ scene, index }: { scene: LiveScene; index: number }) {
+  const lang = useLang();
   const value = useCountdown(scene, index);
-  return <Text style={[styles.pinText, { color: '#fff' }]}>Your train · {value}</Text>;
+  return <Text style={[styles.pinText, { color: '#fff' }]}>{tr(lang).pin(value)}</Text>;
 }
 
 /** Apple Maps-style glass capsule: overview on top, follow-my-train below */
@@ -653,6 +747,27 @@ function LiveDot() {
 }
 
 const styles = StyleSheet.create({
+  startWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  startButton: {
+    height: 52,
+    borderRadius: 26,
+    paddingHorizontal: 22,
+  },
+  startRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  startText: {
+    color: INK,
+    fontSize: 16,
+    fontWeight: 700,
+  },
   container: {
     flex: 1,
     backgroundColor: '#E9F0F6',

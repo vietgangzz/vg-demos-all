@@ -12,6 +12,7 @@ import Animated, {
 
 import { LINE_1, STATIONS } from '@/demos/metro/line-1';
 
+import { tr, useLang } from './i18n';
 import { GREEN, INK, MUTED } from './theme';
 
 const TRACK_W = 180;
@@ -24,6 +25,7 @@ const STOPS = 6;
  * thread, so everything here animates on the UI thread and keeps moving through it.
  */
 export function LoadingOverlay({ bottomInset }: { bottomInset: number }) {
+  const t = tr(useLang());
   const run = useSharedValue(0);
   const pulse = useSharedValue(0);
   useEffect(() => {
@@ -63,9 +65,9 @@ export function LoadingOverlay({ bottomInset }: { bottomInset: number }) {
             <View style={styles.window} />
           </Animated.View>
         </View>
-        <Text style={styles.title}>Building Saigon in 3D</Text>
+        <Text style={styles.title}>{t.building}</Text>
         <Animated.Text style={[styles.subtitle, subtitle]}>
-          Line 1 · {STATIONS.length} stations · {STATIONS[0].name} → {STATIONS[STATIONS.length - 1].name}
+          {t.loadingSub(STATIONS.length, STATIONS[0].name, STATIONS[STATIONS.length - 1].name)}
         </Animated.Text>
       </View>
     </Animated.View>

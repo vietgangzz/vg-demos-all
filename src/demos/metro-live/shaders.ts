@@ -18,6 +18,56 @@ const floatNode = (fn: () => unknown) => t3.toTSL(fn) as unknown as THREE.Node<'
 
 /** 0 = day, 1 = night. Every material below reads it, so the whole city changes together. */
 export const nightUniform = TSL.uniform(0);
+/** Weather (the rain run): 0..1 wind strength and rain strength, shared by every material */
+export const windUniform = TSL.uniform(0);
+export const rainUniform = TSL.uniform(0);
+/** 0..1 falling autumn leaves (the rain run) */
+export const leavesUniform = TSL.uniform(0);
+/**
+ * How far the wind has carried things so far (units, summed from the wind each frame by
+ * scene.ts). Moving by the integral rather than time × wind keeps a change in wind from jerking
+ * everything already in the air.
+ */
+export const windTravelUniform = TSL.uniform(new THREE.Vector2());
+/**
+ * Unit vector (x, z) the wind blows along. scene.ts keeps it across the camera's view, so rain
+ * and leaves always slant across the frame rather than straight towards or away from the lens.
+ */
+export const windDirUniform = TSL.uniform(new THREE.Vector2(1, 0));
+/** 0..1 autumn: broadleaf crowns turn gold, amber and red */
+export const autumnUniform = TSL.uniform(0);
+
+/**
+ * Autumn tint for a crown. The instance colour (the species' green) multiplies whatever the
+ * material outputs, so the tint is a factor that turns those greens into autumn colours; each
+ * tree picks gold, amber or red from its instance index, and turns at its own pace.
+ */
+function autumnTint() {
+  const h = TSL.fract(TSL.sin(TSL.float(TSL.instanceIndex).mul(12.9898)).mul(43758.547));
+  const gold = TSL.vec3(1.75, 1.02, 0.42);
+  const amber = TSL.vec3(1.85, 0.72, 0.3);
+  const red = TSL.vec3(1.8, 0.48, 0.3);
+  const tint = TSL.mix(gold, TSL.mix(amber, red, TSL.step(0.8, h)), TSL.step(0.5, h));
+  // Some trees turn first: a staggered ramp so the city changes like a wave, not a switch
+  const amount = TSL.smoothstep(h.mul(0.4), h.mul(0.4).add(0.6), autumnUniform);
+  return TSL.mix(TSL.vec3(1, 1, 1), tint, amount);
+}
+
+/**
+ * Wind sway for foliage, in world space (for instanced meshes at the scene root, positionNode
+ * runs after the instance transform): crowns and fronds lean downwind and bob, more the higher
+ * above the ground, with slow gusts rolling across the city.
+ */
+function windSway() {
+  const p = TSL.positionLocal;
+  const height = TSL.smoothstep(0.6, 3.2, p.y);
+  const gust = TSL.sin(TSL.time.mul(0.9).add(p.x.mul(0.05)).add(p.z.mul(0.03)))
+    .mul(0.35)
+    .add(0.65);
+  const bob = TSL.sin(TSL.time.mul(2.3).add(p.x.mul(0.21)).add(p.z.mul(0.17)));
+  const lean = bob.mul(0.5).add(0.6).mul(gust).mul(height).mul(windUniform).mul(0.22);
+  return p.add(TSL.vec3(lean, 0, lean.mul(0.45)));
+}
 // fromTSL references the live uniform node. t3.uniform(node) would wrap it in a new uniform
 // that only copies the value once, so updates from JS would never reach the shader.
 const night = t3.fromTSL(nightUniform, d.f32);
@@ -56,6 +106,7 @@ export function createBuildingMaterial() {
     const street = std.mix(wall, d.vec3f(0.42, 0.45, 0.5), shop * 0.55);
     return d.vec4f(std.mix(street, d.vec3f(0.97, 0.97, 0.96), roof), 1.0);
   });
+  const patterned = material.colorNode as THREE.Node<'vec4'>;
 
   // At night roughly half the windows light up, each with its own warmth
   material.emissiveNode = vec3Node(() => {
@@ -76,6 +127,14 @@ export function createBuildingMaterial() {
     const amount = std.max(pane * lit, shopGlow) * wallMask * night.$;
     return warm.mul(amount * 1.15);
   });
+  // Far away a window is a pixel or two, and the pattern shimmers as the camera drifts: fade it
+  // to its average (wall tint, and ~15% of the facade lit at night) before it gets that small
+  const detail = TSL.float(1).sub(TSL.smoothstep(120, 320, TSL.cameraPosition.distance(TSL.positionWorld)));
+  const wall = TSL.float(1).sub(TSL.step(0.6, TSL.normalWorld.y));
+  const flat = TSL.vec4(TSL.mix(TSL.vec3(0.97, 0.97, 0.96), TSL.vec3(0.9, 0.92, 0.94), wall), 1);
+  material.colorNode = TSL.mix(flat, patterned, detail);
+  const glow = TSL.vec3(1.0, 0.85, 0.62).mul(wall.mul(nightUniform).mul(0.17));
+  material.emissiveNode = TSL.mix(glow, material.emissiveNode as THREE.Node<'vec3'>, detail);
   return material;
 }
 
@@ -125,6 +184,12 @@ export function createGlassMaterial() {
     const tone = std.mix(d.vec3f(0.85, 0.92, 1.0), d.vec3f(1.0, 0.88, 0.65), std.fract(h * 5.0));
     return tone.mul(lit * wallMask * night.$ * 0.95);
   });
+  // Like the buildings: far away the lit floors blend into an even glow instead of shimmering
+  const detail = TSL.float(1).sub(TSL.smoothstep(150, 380, TSL.cameraPosition.distance(TSL.positionWorld)));
+  const glow = TSL.vec3(0.95, 0.9, 0.82).mul(
+    TSL.float(1).sub(TSL.step(0.6, TSL.normalWorld.y)).mul(nightUniform).mul(0.36)
+  );
+  material.emissiveNode = TSL.mix(glow, material.emissiveNode as THREE.Node<'vec3'>, detail);
   return material;
 }
 
@@ -250,7 +315,7 @@ export function createFoliageMaterial() {
   const height = TSL.smoothstep(0.6, 2.6, TSL.positionLocal.y);
   const light = TSL.mix(TSL.float(0.72), TSL.float(1.12), TSL.smoothstep(-0.7, 0.95, up));
   const lift = light.add(height.mul(0.08));
-  material.colorNode = TSL.vec3(lift, lift.mul(1.01), lift.mul(0.97));
+  material.colorNode = TSL.vec3(lift, lift.mul(1.01), lift.mul(0.97)).mul(autumnTint());
   // Soft translucency: leaves never go fully dark in shade
   material.emissiveNode = TSL.vec3(0.05, 0.07, 0.04).mul(TSL.float(1).sub(TSL.smoothstep(-0.2, 0.8, up)));
   return material;
@@ -271,6 +336,7 @@ export function createLeafMaterial(map: THREE.Texture) {
     metalness: 0,
     alphaTest: 0.5,
   });
+  material.positionNode = windSway();
   const leaf = leafAttribute();
   const card = TSL.step(0.5, leaf);
   const tex = TSL.texture(map, TSL.uv());
@@ -280,7 +346,7 @@ export function createLeafMaterial(map: THREE.Texture) {
   const light = TSL.mix(TSL.float(0.72), TSL.float(1.14), TSL.smoothstep(-0.75, 0.95, up)).add(height.mul(0.08));
   const rim = TSL.mix(TSL.float(0.86), TSL.float(1), TSL.smoothstep(0.55, 0.95, tex.a));
   const shade = TSL.mix(TSL.float(0.74), leaf.mul(rim), card).mul(light);
-  material.colorNode = TSL.vec3(shade, shade.mul(1.01), shade.mul(0.97));
+  material.colorNode = TSL.vec3(shade, shade.mul(1.01), shade.mul(0.97)).mul(autumnTint());
   // Soft translucency: leaves never go fully dark in shade
   material.emissiveNode = TSL.vec3(0.05, 0.07, 0.04).mul(TSL.float(1).sub(TSL.smoothstep(-0.2, 0.8, up)));
   return material;
@@ -294,6 +360,7 @@ export function createPalmMaterial(map: THREE.Texture) {
     alphaTest: 0.5,
     side: THREE.DoubleSide,
   });
+  material.positionNode = windSway();
   const frond = TSL.step(0.5, leafAttribute());
   const tex = TSL.texture(map, TSL.uv());
   material.opacityNode = TSL.mix(TSL.float(1), tex.a, frond);
@@ -391,10 +458,12 @@ export function createTrainBodyMaterial(accent: string) {
   c = TSL.mix(c, accentColor, noseStripe);
   c = TSL.mix(c, TSL.vec3(0.09, 0.13, 0.19), windscreen);
   material.colorNode = c;
-  // Lit saloon after dark
-  material.emissiveNode = TSL.vec3(1.0, 0.88, 0.66).mul(
-    windowBand.mul(TSL.float(1).sub(pillar)).mul(nightUniform).mul(0.85)
-  );
+  // After dark the train must still read against the city: the livery is softly self-lit (as if
+  // floodlit by the viaduct), the accent stripes glow like LED strips and the saloon is bright
+  const saloon = TSL.vec3(1.0, 0.88, 0.66).mul(windowBand.mul(TSL.float(1).sub(pillar)).mul(1.15));
+  const livery = c.mul(TSL.float(0.42).sub(windowBand.mul(0.3)));
+  const leds = accentColor.mul(stripe.add(noseStripe).add(shoulder.mul(0.35)).mul(0.75));
+  material.emissiveNode = saloon.add(livery).add(leds).mul(nightUniform);
   return material;
 }
 
@@ -481,7 +550,70 @@ export function createWaterAreaMaterial() {
     const shimmer = 0.5 + 0.5 * std.sin(t * 3.0 + h * 30.0);
     return d.vec3f(1.0, 0.75, 0.42).mul(std.step(0.97, h) * shimmer * night.$ * 0.8);
   });
+  // Raindrops pocking the surface: cells that flash for a fifth of a second
+  const p = TSL.positionWorld;
+  const cell = TSL.floor(TSL.vec2(p.x, p.z).mul(1.6));
+  const beat = TSL.floor(TSL.time.mul(5));
+  const h = TSL.fract(TSL.sin(cell.x.mul(12.9898).add(cell.y.mul(78.233)).add(beat.mul(3.71))).mul(43758.547));
+  const drops = TSL.step(0.94, h).mul(rainUniform).mul(0.3);
+  material.emissiveNode = (material.emissiveNode as THREE.Node<'vec3'>).add(TSL.vec3(drops, drops, drops.mul(1.1)));
   return material;
+}
+
+/**
+ * Rain (scene.ts): thin streaks in a box that follows the camera's focus. Each streak carries its
+ * place in the box (`origin`, 0..1); positions wrap around the focus so the rain stays put in the
+ * world while the camera travels, and fall with time, leaning and drifting with the wind.
+ */
+export function createRainMaterial() {
+  const center = TSL.uniform(new THREE.Vector3());
+  const size = TSL.uniform(70);
+  // The rain is in front of the camera, not out in the haze: no fog, or the storm's thick fog
+  // would wash every streak into the sky
+  const material = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, fog: false });
+  const o = TSL.attribute<'vec3'>('origin', 'vec3');
+  const off = TSL.positionLocal;
+  const height = size.mul(0.75);
+  // Paced from physics at true scale (4.5 m per unit): raindrops fall at 6–9 m/s, about 2 units/s.
+  // Seen from a camera a couple of hundred metres away that reads as a near-frozen dusting, so the
+  // fall runs about 3.5× real (7–9 units/s) for a calm, steady rain; each streak is the distance
+  // its drop covers in one 1/28 s exposure (motion blur, not a drawn line), and bigger drops fall
+  // faster and streak longer.
+  const speed = TSL.fract(o.z.mul(91.7)).mul(2).add(7);
+  const fall = TSL.fract(o.y.sub(TSL.time.mul(speed).div(height)));
+  const wrap = (c: THREE.Node<'float'>, k: THREE.Node<'float'>) =>
+    c.add(
+      TSL.fract(k.sub(c.div(size)))
+        .sub(0.5)
+        .mul(size)
+    );
+  // Wind blows the rain sideways: every drop travels along its own slant (higher drops sit further
+  // upwind), so streaks and motion agree instead of tilted streaks falling straight down
+  // The same wind that carries the leaves: each drop falls along a slant set by the wind's
+  // speed against its own fall (exaggerated a little so even a breeze reads on camera)
+  const slant = TSL.min(windUniform.mul(0.5).add(0.15), 0.9);
+  const along = off.y.mul(speed.div(28));
+  const drift = fall.mul(height).mul(slant).div(size);
+  const width = size.div(70);
+  // Upwind of where it lands: a drop high in the box sits further upwind, so as it falls it
+  // travels downwind, the same way the leaves go, and its streak leans back into the wind
+  const dir = windDirUniform.negate();
+  const x = wrap(center.x, o.x.add(drift.mul(dir.x)))
+    .add(off.x.mul(width))
+    .add(along.mul(slant).mul(dir.x));
+  const y = center.y.sub(height.mul(0.3)).add(fall.mul(height)).add(along);
+  const z = wrap(center.z, o.z.add(drift.mul(dir.y)))
+    .add(off.z.mul(width))
+    .add(along.mul(slant).mul(dir.y));
+  material.positionNode = TSL.vec3(x, y, z);
+  // Fade in and out at the top and bottom of the box, and away near the lens: a streak right
+  // in front of the camera would be a huge bar
+  const fade = TSL.smoothstep(0, 0.12, fall).mul(TSL.float(1).sub(TSL.smoothstep(0.85, 1, fall)));
+  const lens = TSL.smoothstep(size.mul(0.18), size.mul(0.42), TSL.positionWorld.distance(TSL.cameraPosition));
+  const weight = TSL.fract(o.x.mul(53.71)).mul(0.6).add(0.4);
+  material.colorNode = TSL.vec3(0.86, 0.9, 0.97);
+  material.opacityNode = TSL.min(rainUniform, 1.4).mul(0.36).mul(weight).mul(fade).mul(lens).mul(TSL.step(0, y));
+  return { material, uniforms: { center, size } };
 }
 
 export function createContactShadowMaterial() {
@@ -558,4 +690,77 @@ export function createDoorLeafMaterial(travel: number) {
     return p.add(d.vec3f(0.0, 0.0, slide.$ * doorsA.$ * travel));
   });
   return { material, doors };
+}
+
+/**
+ * Autumn leaves (scene.ts): small leaf cards streaming downwind through a box around the
+ * camera's focus. Each leaf carries its place in the box (`origin`, 0..1) and a seed
+ * (`seed`: spin, flutter, colour); like the rain, positions wrap around the focus so the leaves
+ * stay put in the world while the camera travels. The leaf outline is cut from the card's uv.
+ */
+export function createLeavesMaterial() {
+  const center = TSL.uniform(new THREE.Vector3());
+  const size = TSL.uniform(70);
+  const material = new THREE.MeshStandardNodeMaterial({
+    roughness: 0.85,
+    metalness: 0,
+    side: THREE.DoubleSide,
+    alphaTest: 0.5,
+  });
+  const o = TSL.attribute<'vec3'>('origin', 'vec3');
+  const seed = TSL.attribute<'vec3'>('seed', 'vec3');
+  const local = TSL.positionLocal;
+  const height = size.mul(0.45);
+  const t = TSL.time;
+  // Carried by the wind, not tossed about: every leaf streams downwind (the same direction as
+  // the rain's slant, towards +x and a little +z) at 3–5 units/s in a gale, sinking slowly
+  const pace = seed.x.mul(0.4).add(0.8);
+  const gust = TSL.sin(t.mul(0.7).add(o.x.mul(6.28))).mul(0.4);
+  const blown = windTravelUniform.mul(pace).add(windDirUniform.mul(gust)).div(size);
+  const fall = TSL.fract(o.y.sub(t.mul(seed.x.mul(0.15).add(0.25)).div(height)));
+  const wrap = (c: THREE.Node<'float'>, k: THREE.Node<'float'>) =>
+    c.add(
+      TSL.fract(k.sub(c.div(size)))
+        .sub(0.5)
+        .mul(size)
+    );
+  const px = wrap(center.x, o.x.add(blown.x));
+  const pz = wrap(center.z, o.z.add(blown.y));
+  // Leaves grow in as the wind picks them up and shrink away at the edges of the box, so none
+  // pops in or out; each joins at its own share of `leavesUniform`
+  const share = TSL.fract(seed.z.mul(7.31));
+  const joined = TSL.smoothstep(share, share.add(0.12), leavesUniform);
+  const edge = TSL.vec2(px.sub(center.x), pz.sub(center.z)).length().div(size.mul(0.5));
+  const scale = joined
+    .mul(TSL.float(1).sub(TSL.smoothstep(0.75, 0.98, edge)))
+    .mul(TSL.smoothstep(0, 0.1, fall))
+    .mul(TSL.float(1).sub(TSL.smoothstep(0.88, 1, fall)));
+  // A steady tumble about the wind's axis, and a gentle wobble: no random swerving
+  const roll = t.mul(seed.y.mul(1.6).add(1.2)).add(seed.z.mul(6.28));
+  const yaw = seed.y.mul(6.28);
+  const lx = local.x.mul(scale);
+  const lz = local.z.mul(scale);
+  const cy = TSL.cos(yaw);
+  const sy = TSL.sin(yaw);
+  const ax = lx.mul(cy).sub(lz.mul(sy));
+  const az = lx.mul(sy).add(lz.mul(cy));
+  const cr = TSL.cos(roll);
+  const sr = TSL.sin(roll);
+  const x = px.add(ax);
+  const y = center.y.sub(height.mul(0.15)).add(fall.mul(height)).add(az.mul(sr));
+  const z = pz.add(az.mul(cr));
+  material.positionNode = TSL.vec3(x, y, z);
+  // Leaf outline: a pointed oval along the card, with a midrib
+  const uv = TSL.uv().sub(0.5).mul(2);
+  const width = TSL.float(1).sub(uv.y.mul(uv.y)).mul(0.62);
+  const inside = TSL.step(uv.x.abs(), width).mul(TSL.step(uv.y.abs(), 0.98));
+  // No leaf right against the lens: it would fill the frame as a dark blot
+  const lens = TSL.step(size.mul(0.3), TSL.positionWorld.distance(TSL.cameraPosition));
+  material.opacityNode = inside.mul(TSL.step(0.02, scale)).mul(lens).mul(TSL.step(0.1, y));
+  // Golden to amber; self-lit enough to glow against a grey storm sky, like backlit leaves
+  const tone = TSL.mix(TSL.vec3(1.0, 0.8, 0.22), TSL.vec3(0.95, 0.5, 0.14), seed.y);
+  const rib = TSL.float(1).sub(TSL.smoothstep(0.0, 0.08, uv.x.abs()).oneMinus().mul(0.25));
+  material.colorNode = tone.mul(rib);
+  material.emissiveNode = tone.mul(0.42);
+  return { material, uniforms: { center, size } };
 }

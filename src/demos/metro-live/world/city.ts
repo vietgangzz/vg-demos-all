@@ -33,6 +33,7 @@ import {
   type MapBuilding,
 } from './map';
 import { buildSuoiTien } from './suoi-tien';
+import { buildTerminus } from './terminus';
 import { buildTunnels } from './tunnels';
 
 type Box = { x: number; z: number; w: number; d: number; h: number; color: string; yaw: number };
@@ -265,6 +266,7 @@ export function buildCity(scene: THREE.Scene, model: LineModel) {
   const landmarks = buildLandmarks(scene);
   mark('landmarks');
   const suoiTien = buildSuoiTien(scene);
+  buildTerminus(scene, model);
   mark('suoiTien');
   buildBridges(scene, roads);
   mark('bridges');
@@ -287,24 +289,62 @@ export function buildCity(scene: THREE.Scene, model: LineModel) {
   mark('lights');
   const signals = buildTrafficLights(scene, roads, near);
   mark('signals');
+  const trafficFrom = scene.children.length;
   const traffic = buildTraffic(scene, roads, near, rand);
+  const trafficMeshes = scene.children.slice(trafficFrom);
+  let trafficOn = true;
   details.push(...scene.children.slice(from));
   mark('traffic');
+
+  // Skyline heights for the directed camera (scene.ts keeps its view clear of towers): the
+  // tallest roof per 4-unit cell, from real footprints (bounding boxes), landmarks and infill
+  const SKY_CELL = 4;
+  const skyline = new Map<number, number>();
+  const raise = (minX: number, minZ: number, maxX: number, maxZ: number, h: number) => {
+    for (let cx = Math.floor(minX / SKY_CELL); cx <= Math.floor(maxX / SKY_CELL); cx++) {
+      for (let cz = Math.floor(minZ / SKY_CELL); cz <= Math.floor(maxZ / SKY_CELL); cz++) {
+        const key = cx * 100003 + cz;
+        skyline.set(key, Math.max(skyline.get(key) ?? 0, h));
+      }
+    }
+  };
+  for (const b of [
+    ...real,
+    ...MAP.buildings.filter((m) => LANDMARK_IDS.has(m.id)).map((m) => ({ ...m, h: m.height ?? 40 })),
+  ]) {
+    const xs = b.ring.map((p) => p.x);
+    const zs = b.ring.map((p) => p.y);
+    raise(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs), b.h);
+  }
+  for (const b of boxes) {
+    const r = Math.max(b.w, b.d) / 2;
+    raise(b.x - r, b.z - r, b.x + r, b.z + r, b.h);
+  }
 
   if (__DEV__) (globalThis as { __cityTimings?: object }).__cityTimings = timings;
   return {
     roads,
+    /** Height of the tallest building around (x, z), or 0 */
+    skylineAt(x: number, z: number) {
+      return skyline.get(Math.floor(x / SKY_CELL) * 100003 + Math.floor(z / SKY_CELL)) ?? 0;
+    },
     /** Level of detail: hide sub-pixel clutter beyond `distance` from the camera's focus */
     setCameraDistance(distance: number) {
       const show = distance < 470;
       if (show === detailShown) return;
       detailShown = show;
       for (const o of details) o.visible = show;
+      for (const o of trafficMeshes) o.visible = show && trafficOn;
       for (const o of lodNear) o.visible = show;
       for (const o of lodFar) o.visible = !show;
     },
+    /** Road traffic on or off (the showcase runs are filmed with empty streets) */
+    setTraffic(on: boolean) {
+      trafficOn = on;
+      for (const o of trafficMeshes) o.visible = on && detailShown;
+    },
     update(seconds: number) {
-      traffic.update(seconds);
+      if (trafficOn) traffic.update(seconds);
       signals.update(seconds);
       suoiTien.update(seconds);
       landmarks.update();
@@ -930,12 +970,20 @@ function buildTraffic(
     }
   }
 
-  // Motorbike: dark bike + coloured rider and helmet (instance colour)
-  const bikeGeo = new THREE.BoxGeometry(0.42, 0.13, 0.11);
-  bikeGeo.translate(0, 0.12, 0);
+  // Motorbike (a scooter, like most in Saigon): round wheels, a rounded body and leg shield, and
+  // a rider in a coloured shirt (instance colour) with a round helmet
+  const wheel = () => new THREE.CylinderGeometry(0.075, 0.075, 0.035, 12).rotateX(Math.PI / 2);
+  const bikeGeo = merge([
+    wheel().translate(0.15, 0.075, 0),
+    wheel().translate(-0.15, 0.075, 0),
+    new RoundedBoxGeometry(0.3, 0.1, 0.1, 2, 0.04).translate(-0.02, 0.15, 0),
+    new RoundedBoxGeometry(0.06, 0.18, 0.1, 2, 0.025).translate(0.12, 0.2, 0).rotateZ(-0.25),
+    new THREE.CylinderGeometry(0.008, 0.008, 0.16, 5).rotateX(Math.PI / 2).translate(0.15, 0.3, 0),
+  ]);
   const riderGeo = merge([
-    new THREE.BoxGeometry(0.15, 0.22, 0.17).translate(-0.03, 0.3, 0),
-    new THREE.BoxGeometry(0.12, 0.11, 0.12).translate(-0.02, 0.47, 0),
+    new RoundedBoxGeometry(0.11, 0.2, 0.15, 2, 0.04).translate(-0.04, 0.33, 0),
+    new RoundedBoxGeometry(0.15, 0.06, 0.13, 2, 0.025).translate(0.01, 0.22, 0),
+    new THREE.SphereGeometry(0.06, 10, 8).translate(-0.02, 0.49, 0),
   ]);
   const bikeMesh = new THREE.InstancedMesh(
     bikeGeo,

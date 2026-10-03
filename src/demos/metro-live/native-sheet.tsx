@@ -23,6 +23,7 @@ import { SymbolView } from 'expo-symbols';
 import { NumericText } from '@/components/numeric-text';
 import { LINE_1, STATIONS, toAscii } from '@/demos/metro/line-1';
 
+import { tr, useLang } from './i18n';
 import { TRAIN_COUNT, type LiveScene } from './scene';
 import { StatusRows, useLineKey } from './status';
 import { GREEN, INK, MUTED } from './theme';
@@ -91,6 +92,7 @@ function SheetBody({
   sideTop,
   onDetent,
 }: Props) {
+  const t = tr(useLang());
   const side = sideWidth > 0;
   // With a side cutout the full-height sheet would slide under it, so it stops just below
   // (the sheet adds the bottom safe area on top of this height)
@@ -201,7 +203,7 @@ function SheetBody({
           onChangeText={setQuery}
           onFocus={startSearch}
           onSubmitEditing={onSubmit}
-          placeholder="Search stations"
+          placeholder={t.search}
           placeholderTextColor={MUTED}
           returnKeyType="search"
           autoCorrect={false}
@@ -214,7 +216,7 @@ function SheetBody({
         pointerEvents={searching ? 'auto' : 'none'}
         style={[styles.cancelSlot, { right: 16 + cutoutPad }, cancelStyle]}>
         <Pressable onPress={() => endSearch(MEDIUM)} hitSlop={10}>
-          <Text style={styles.cancel}>Cancel</Text>
+          <Text style={styles.cancel}>{t.cancel}</Text>
         </Pressable>
       </Animated.View>
     </View>
@@ -255,17 +257,17 @@ function SheetBody({
             station rows, so focusing the field or typing never rebuilds the list */}
         <Animated.View style={[searching && styles.hidden, statusStyle]}>
           <TrueSheetPeek>
-            <Text style={styles.section}>Your train</Text>
+            <Text style={styles.section}>{t.yourTrain}</Text>
             {scene ? (
               <StatusRows scene={scene} follow={follow} onPress={pickTrain} only="mine" />
             ) : (
               <View style={styles.placeholderRow} />
             )}
           </TrueSheetPeek>
-          <Text style={styles.section}>Line status · {TRAIN_COUNT} trains</Text>
+          <Text style={styles.section}>{t.lineStatus(TRAIN_COUNT)}</Text>
           {scene ? <StatusRows scene={scene} follow={follow} onPress={pickTrain} only="others" /> : null}
         </Animated.View>
-        <Text style={styles.section}>{searching && deferredQuery.trim() ? 'Results' : 'Stations'}</Text>
+        <Text style={styles.section}>{searching && deferredQuery.trim() ? t.results : t.stations}</Text>
         <StationResults scene={scene} query={searching ? deferredQuery : ''} onPick={pickStation} />
         {searching ? null : (
           <Text style={styles.footnote}>
@@ -296,6 +298,7 @@ function StationResults({
   query: string;
   onPick: (i: number) => void;
 }) {
+  const t = tr(useLang());
   const q = fold(query.trim());
   const visible = new Set(matchStations(query));
   return (
@@ -314,8 +317,8 @@ function StationResults({
       {visible.size === 0 ? (
         <Animated.View entering={FadeIn.duration(180)} style={styles.empty}>
           <SymbolView name="tram.fill" size={28} tintColor="#C4C9D0" />
-          <Text style={styles.emptyTitle}>No stations match “{query.trim()}”</Text>
-          <Text style={styles.emptySub}>Try a name without accents, like “thu duc”.</Text>
+          <Text style={styles.emptyTitle}>{t.noMatch(query.trim())}</Text>
+          <Text style={styles.emptySub}>{t.noMatchHint}</Text>
         </Animated.View>
       ) : null}
     </>
@@ -343,6 +346,8 @@ const StationRow = memo(function StationRow({
   hidden: boolean;
   onPick: (i: number) => void;
 }) {
+  const lang = useLang();
+  const t = tr(lang);
   const station = STATIONS[index];
   // "here" while a train is boarding, otherwise seconds until the next arrival from either side
   const live = useLineKey((now) => {
@@ -358,9 +363,10 @@ const StationRow = memo(function StationRow({
   });
   const [before, match, after] = highlight(station.name, query);
   const meta = [
-    station.english,
-    station.underground ? 'Underground' : 'Elevated',
-    station.minutes === 0 ? 'Terminus' : `${station.minutes} min from Bến Thành`,
+    // English landmark names only in English: in Vietnamese the station name says it
+    lang === 'en' ? station.english : undefined,
+    station.underground ? t.underground : t.elevated,
+    station.minutes === 0 ? t.terminus : t.minutesFrom(station.minutes),
   ].filter(Boolean);
 
   return (
@@ -383,7 +389,7 @@ const StationRow = memo(function StationRow({
       {live === 'here' ? (
         <Animated.View entering={FadeIn.duration(200)} style={styles.herePill}>
           <View style={styles.hereDot} />
-          <Text style={styles.hereText}>Boarding</Text>
+          <Text style={styles.hereText}>{t.boarding}</Text>
         </Animated.View>
       ) : live ? (
         <View style={styles.eta}>

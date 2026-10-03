@@ -113,8 +113,9 @@ export function createTimetable(model: LineModel, trainCount: number) {
   const segments: Segment[] = [];
   let t = 0;
   const n = model.stationU.length;
-  // Real distances, run about three times faster than the real 80 km/h trains
-  const travel = (a: number, b: number) => 6 + (Math.abs(model.stationU[b] - model.stationU[a]) * model.length) / 15;
+  // Real distances at about 1.5× the real trains (80 km/h ≈ 5 units/s): quick enough to watch
+  // the line work, slow enough to follow a train with your eyes
+  const travel = (a: number, b: number) => 8 + (Math.abs(model.stationU[b] - model.stationU[a]) * model.length) / 7.5;
 
   // Each run starts by leaving a terminus (the previous run already dwelled there)
   // and ends with a longer dwell at the other terminus.
@@ -137,6 +138,8 @@ export function createTimetable(model: LineModel, trainCount: number) {
 
   const forward = Array.from({ length: n }, (_, i) => i);
   run(forward, 1);
+  /** When the run back from Suối Tiên to Bến Thành leaves (after the terminus dwell) */
+  const inbound = t;
   run([...forward].reverse(), -1);
   const cycle = t;
 
@@ -171,7 +174,11 @@ export function createTimetable(model: LineModel, trainCount: number) {
     };
   };
 
-  return { stateAt, cycle };
+  /** When a train heading `dir` leaves `station` (seconds into the cycle) */
+  const departs = (station: number, dir: 1 | -1) =>
+    segments.find((g) => g.kind === 'dwell' && g.station === station && g.dir === dir)?.end ?? inbound;
+
+  return { stateAt, cycle, inbound, departs };
 }
 
 export type Timetable = ReturnType<typeof createTimetable>;

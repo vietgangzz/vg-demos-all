@@ -12,6 +12,7 @@ import Animated, {
 import { NumericText } from '@/components/numeric-text';
 import { STATIONS } from '@/demos/metro/line-1';
 
+import { tr, useLang, type Lang } from './i18n';
 import { type TrainState } from './line-model';
 import { TRAIN_COUNT, YOUR_TRAIN, type LiveScene } from './scene';
 import { BLUE, GREEN, INK, MUTED, SPRING } from './theme';
@@ -25,34 +26,38 @@ export type Row = {
   etaLabel: string;
 };
 
-export function describe(k: number, s: TrainState): Row {
-  const toward = s.dir === 1 ? 'Suối Tiên' : 'Bến Thành';
+export function describe(k: number, s: TrainState, lang: Lang): Row {
+  // Dwelling at a terminus the train is already boarding for the trip back
+  const turning = s.phase === 'dwell' && (s.station === 0 || s.station === STATIONS.length - 1);
+  const dir = turning ? (s.station === 0 ? 1 : -1) : s.dir;
+  const toward = dir === 1 ? 'Suối Tiên' : 'Bến Thành';
   const mine = k === YOUR_TRAIN;
   const station = STATIONS[s.station].name;
+  const t = tr(lang);
   let status: string;
   let statusColor = MUTED;
   let subtitle: string;
   let etaLabel: string;
   if (s.phase === 'dwell') {
-    status = s.progress > 0.78 ? 'Doors closing' : 'Boarding';
+    status = s.progress > 0.78 ? t.doorsClosing : t.boarding;
     statusColor = s.progress > 0.78 ? '#E08A00' : MUTED;
-    subtitle = `At ${station}`;
-    etaLabel = 'departs';
+    subtitle = t.at(station);
+    etaLabel = t.departs;
   } else {
-    status = s.progress > 0.7 ? 'Arriving' : 'Departed';
+    status = s.progress > 0.7 ? t.arriving : t.departed;
     if (s.progress > 0.7) statusColor = BLUE;
-    subtitle = `Next: ${station}`;
-    etaLabel = 'arrives';
+    subtitle = t.next(station);
+    etaLabel = t.arrives;
   }
   if (mine) {
-    status = `Your train · ${status}`;
+    status = `${t.yourTrain} · ${status}`;
     statusColor = GREEN;
   }
   return {
     train: k,
     status,
     statusColor,
-    title: `Train ${String(k + 1).padStart(2, '0')} · to ${toward}`,
+    title: t.trainTitle(String(k + 1).padStart(2, '0'), toward),
     subtitle,
     etaLabel,
   };
@@ -63,14 +68,21 @@ export function describe(k: number, s: TrainState): Row {
  * into a single commit, and the 3D screen component itself never re-renders.
  */
 export const lineClock = (() => {
-  let now = performance.now() / 1000;
+  // Real time, unless the scene runs its own (the time-lapsed showcase run)
+  let source = () => performance.now() / 1000;
+  let now = source();
   let timer: ReturnType<typeof setInterval> | null = null;
   const listeners = new Set<() => void>();
   return {
+    /** Read the timetable clock from `next` (null: back to real time) */
+    setSource(next: (() => number) | null) {
+      source = next ?? (() => performance.now() / 1000);
+      now = source();
+    },
     subscribe(listener: () => void) {
       listeners.add(listener);
       timer ??= setInterval(() => {
-        now = performance.now() / 1000;
+        now = source();
         listeners.forEach((l) => l());
       }, 250);
       return () => {
@@ -102,18 +114,24 @@ export function StatusRows({
   /** Split your train from the rest, e.g. to pin it in a collapsed sheet */
   only?: 'all' | 'mine' | 'others';
 }) {
-  // Rows only change when a status changes; the countdowns tick on the UI thread
-  const key = useLineKey((now) =>
-    Array.from({ length: TRAIN_COUNT }, (_, k) => {
-      const r = describe(k, scene.timetable.stateAt(now, k));
-      return `${r.status}|${r.subtitle}|${r.etaLabel}`;
-    }).join('#')
+  // Rows only change when a status changes (or the language does); the countdowns tick on the UI thread
+  const lang = useLang();
+  const key = useLineKey(
+    (now) =>
+      `${lang}§` +
+      Array.from({ length: TRAIN_COUNT }, (_, k) => {
+        const r = describe(k, scene.timetable.stateAt(now, k), lang);
+        return `${r.status}|${r.subtitle}|${r.etaLabel}`;
+      }).join('#')
   );
-  const rows = key.split('#').map((part, k) => {
-    const [status, subtitle, etaLabel] = part.split('|');
-    const base = describe(k, scene.timetable.stateAt(lineClock.get(), k));
-    return { ...base, status, subtitle, etaLabel };
-  });
+  const rows = key
+    .slice(key.indexOf('§') + 1)
+    .split('#')
+    .map((part, k) => {
+      const [status, subtitle, etaLabel] = part.split('|');
+      const base = describe(k, scene.timetable.stateAt(lineClock.get(), k), lang);
+      return { ...base, status, subtitle, etaLabel };
+    });
   rows.sort((a, b) => (a.train === YOUR_TRAIN ? -1 : b.train === YOUR_TRAIN ? 1 : a.train - b.train));
   const shown = rows.filter((r) => only === 'all' || (only === 'mine') === (r.train === YOUR_TRAIN));
   return (
@@ -142,6 +160,7 @@ export function TrainRow({
   active: boolean;
   onPress: () => void;
 }) {
+  const lang = useLang();
   const mine = row.train === YOUR_TRAIN;
   const pressed = useSharedValue(0);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: 1 - pressed.get() * 0.025 }] }));
@@ -152,7 +171,7 @@ export function TrainRow({
       onPressOut={() => pressed.set(withSpring(0, SPRING))}>
       <Animated.View style={[styles.row, active && { backgroundColor: '#F4F6F9' }, style]}>
         <View style={[styles.trainBadge, mine && { backgroundColor: '#E6F6EC' }]}>
-          <Text style={[styles.trainBadgeLabel, mine && { color: GREEN }]}>TRAIN</Text>
+          <Text style={[styles.trainBadgeLabel, mine && { color: GREEN }]}>{tr(lang).trainBadge}</Text>
           <Text style={[styles.trainBadgeNumber, mine && { color: GREEN }]}>
             {String(row.train + 1).padStart(2, '0')}
           </Text>

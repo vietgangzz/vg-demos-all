@@ -2,14 +2,35 @@ import * as THREE from 'three/webgpu';
 
 import { LINE_1 } from '@/demos/metro/line-1';
 
+import {
+  CINEMATIC_COUNTDOWN,
+  DWELL_WARP,
+  lightningOf,
+  rainShotAt,
+  shotAt,
+  weatherAt,
+  type WeatherPreset,
+} from './cinematic';
 import { createLineModel, createTimetable, type TrainState } from './line-model';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
-import { createXrayMaterial, nightUniform } from './shaders';
+import {
+  autumnUniform,
+  createLeavesMaterial,
+  createRainMaterial,
+  createXrayMaterial,
+  leavesUniform,
+  nightUniform,
+  rainUniform,
+  windDirUniform,
+  windTravelUniform,
+  windUniform,
+} from './shaders';
 import { buildCity } from './world/city';
 import { buildEnvironment } from './world/environment';
 import { ribbonGeometry } from './world/geometry';
 import { FORWARD, RIGHT } from './world/layout';
+import { BEN_THANH_MARKET_CENTRE } from './world/landmarks';
 import { MAP } from './world/map';
 import { buildPassengers } from './world/people';
 import { buildRailway, TRACK_OFFSET } from './world/railway';
@@ -49,6 +70,9 @@ export const DEFAULT_PITCH = Math.asin(BASE_DIR.y);
 export const PITCH_RANGE: [number, number] = [0.42, 1.38];
 export const BASE_YAW = Math.atan2(BASE_DIR.z, BASE_DIR.x);
 
+/** Showcase run (cinematic.ts): waiting for Start, counting down, running, arrived */
+export type CinematicMode = 'ready' | 'countdown' | 'run' | 'done';
+
 export type FrameInfo = {
   /** Per station: screen x, y, opacity, busy (a train is at the platform) */
   stations: number[];
@@ -64,6 +88,27 @@ const DAY = {
   sun: new THREE.Color('#FFF4E5'),
   sunIntensity: 2.3,
 };
+/** Seconds of a terminus dwell the showcase runs in real time before departure: doors open, then close */
+const DOOR_LEAD = 4.5;
+
+/** Golden hour and an overcast sky, for the rain run's weather (cinematic.ts) */
+const SUNSET = {
+  clear: new THREE.Color('#F4E0D0'),
+  sky: new THREE.Color('#FFF3E6'),
+  ground: new THREE.Color('#D8D0C8'),
+  hemi: 1.55,
+  sun: new THREE.Color('#FFD2A8'),
+  sunIntensity: 2.2,
+};
+const STORM = {
+  clear: new THREE.Color('#9CA8B5'),
+  sky: new THREE.Color('#C4CDD8'),
+  ground: new THREE.Color('#8A94A0'),
+  hemi: 1.25,
+  sun: new THREE.Color('#D3DCE6'),
+  sunIntensity: 0.7,
+};
+const WHITE = new THREE.Color('#FFFFFF');
 const NIGHT = {
   clear: new THREE.Color('#151C2C'),
   sky: new THREE.Color('#5E6E9C'),
@@ -203,6 +248,86 @@ export function createLiveScene(
   const proxyScale = new THREE.Vector3();
   const passengers = buildPassengers(scene, platformSpots);
 
+  // Rain for the rain run: streaks of two crossed quads, placed and animated by the shader
+  const RAIN_STREAKS = 9000;
+  const rainShader = createRainMaterial();
+  const rainPos = new Float32Array(RAIN_STREAKS * 8 * 3);
+  const rainOrigin = new Float32Array(RAIN_STREAKS * 8 * 3);
+  const rainIndex: number[] = [];
+  const quad = [
+    [-0.016, 0, 0],
+    [0.016, 0, 0],
+    [0.016, 1, 0],
+    [-0.016, 1, 0],
+    [0, 0, -0.016],
+    [0, 0, 0.016],
+    [0, 1, 0.016],
+    [0, 1, -0.016],
+  ];
+  const rainRand = (() => {
+    let seed = 7;
+    return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  })();
+  for (let i = 0; i < RAIN_STREAKS; i++) {
+    const o = [rainRand(), rainRand(), rainRand()];
+    quad.forEach((q, v) => {
+      rainPos.set(q, (i * 8 + v) * 3);
+      rainOrigin.set(o, (i * 8 + v) * 3);
+    });
+    const b = i * 8;
+    rainIndex.push(b, b + 1, b + 2, b, b + 2, b + 3, b + 4, b + 5, b + 6, b + 4, b + 6, b + 7);
+  }
+  const rainGeometry = new THREE.BufferGeometry();
+  rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+  rainGeometry.setAttribute('origin', new THREE.BufferAttribute(rainOrigin, 3));
+  rainGeometry.setIndex(rainIndex);
+  const rain = new THREE.Mesh(rainGeometry, rainShader.material);
+  rain.frustumCulled = false;
+  rain.renderOrder = 30;
+  rain.visible = false;
+  scene.add(rain);
+
+  // Autumn leaves for the rain run: flat cards, tumbled and blown by the shader
+  const LEAVES = 1400;
+  const leavesShader = createLeavesMaterial();
+  const leafPos = new Float32Array(LEAVES * 4 * 3);
+  const leafUv = new Float32Array(LEAVES * 4 * 2);
+  const leafOrigin = new Float32Array(LEAVES * 4 * 3);
+  const leafSeed = new Float32Array(LEAVES * 4 * 3);
+  const leafIndex: number[] = [];
+  for (let i = 0; i < LEAVES; i++) {
+    const s = 0.11 + rainRand() * 0.07;
+    const o = [rainRand(), rainRand(), rainRand()];
+    const seed = [rainRand(), rainRand(), rainRand()];
+    [
+      [-s, 0, -s * 0.6, 0, 0],
+      [s, 0, -s * 0.6, 0, 1],
+      [s, 0, s * 0.6, 1, 1],
+      [-s, 0, s * 0.6, 1, 0],
+    ].forEach(([x, y, z, u, v], k) => {
+      // uv.y runs along the leaf (x), uv.x across it
+      leafPos.set([x, y, z], (i * 4 + k) * 3);
+      leafUv.set([u, v], (i * 4 + k) * 2);
+      leafOrigin.set(o, (i * 4 + k) * 3);
+      leafSeed.set(seed, (i * 4 + k) * 3);
+    });
+    leafIndex.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
+  }
+  const leafGeometry = new THREE.BufferGeometry();
+  leafGeometry.setAttribute('position', new THREE.BufferAttribute(leafPos, 3));
+  leafGeometry.setAttribute('uv', new THREE.BufferAttribute(leafUv, 2));
+  // Lit from above like the ground, so leaves catch the low sun
+  const leafNormal = new Float32Array(LEAVES * 4 * 3);
+  for (let i = 1; i < leafNormal.length; i += 3) leafNormal[i] = 1;
+  leafGeometry.setAttribute('normal', new THREE.BufferAttribute(leafNormal, 3));
+  leafGeometry.setAttribute('origin', new THREE.BufferAttribute(leafOrigin, 3));
+  leafGeometry.setAttribute('seed', new THREE.BufferAttribute(leafSeed, 3));
+  leafGeometry.setIndex(leafIndex);
+  const leaves = new THREE.Mesh(leafGeometry, leavesShader.material);
+  leaves.frustumCulled = false;
+  leaves.visible = false;
+  scene.add(leaves);
+
   // ---- Camera ------------------------------------------------------------
   const target = new THREE.Vector3(MAP.stations[0].x, 0, MAP.stations[0].y);
   let zoom = controls.zoom.get();
@@ -219,6 +344,7 @@ export function createLiveScene(
 
   // Day / night blend
   let nightTarget = 0;
+  let autumnTarget = 0;
   let night = 0;
 
   const tmp = new THREE.Vector3();
@@ -227,24 +353,41 @@ export function createLiveScene(
   const projected = new THREE.Vector3();
   const desired = new THREE.Vector3();
 
+  /** Cab to last car, as a fraction of the line */
+  const trainSpan = ((CAR_COUNT - 1) * CAR_GAP) / model.length;
   const placeTrain = (k: number, seconds: number) => {
     const s = timetable.stateAt(seconds, k);
     const train = trains[k];
     const underground = s.u < model.portalU - 3 / model.length;
     const moving = s.phase === 'move' ? Math.sin(Math.PI * s.progress) : 0;
+    // The timetable gives the cab's position; the cars trail behind it. A terminus is the end of
+    // the line, so a train there is already set for the trip back (cab at the far end, on the
+    // track it leaves by) and pulls out with its whole length inside the platform, instead of
+    // trailing cars that would pile up against the buffers
+    let dir = s.dir;
+    let front = s.u;
+    const last = model.stationU.length - 1;
+    if (s.phase === 'dwell' && (s.station === 0 || s.station === last)) {
+      dir = s.station === 0 ? 1 : -1;
+      front = s.u + dir * trainSpan;
+    } else if (s.phase === 'move' && (s.from === 0 || s.from === last)) {
+      const a = model.stationU[s.from];
+      const b = model.stationU[s.station];
+      front = s.u + s.dir * trainSpan * (1 - (s.u - a) / (b - a || 1));
+    }
     train.cars.forEach((car, c) => {
-      const u = THREE.MathUtils.clamp(s.u - s.dir * c * (CAR_GAP / model.length), 0, 1);
+      const u = THREE.MathUtils.clamp(front - dir * c * (CAR_GAP / model.length), 0, 1);
       model.curve.getPointAt(u, tmp);
       model.curve.getTangentAt(u, tmp2);
       // Right-hand running on the double track
-      const off = TRACK_OFFSET * s.dir;
+      const off = TRACK_OFFSET * dir;
       tmp.x += -tmp2.z * off;
       tmp.z += tmp2.x * off;
-      tmp2.multiplyScalar(s.dir);
+      tmp2.multiplyScalar(dir);
       car.position.set(tmp.x, tmp.y + (underground ? 0.02 : 0.38), tmp.z);
       car.lookAt(tmp.x + tmp2.x, car.position.y + tmp2.y, tmp.z + tmp2.z);
       // Lean into curves a little, proportional to speed
-      model.curve.getTangentAt(Math.min(1, u + 6 / model.length), tmp3).multiplyScalar(s.dir);
+      model.curve.getTangentAt(Math.min(1, u + 6 / model.length), tmp3).multiplyScalar(dir);
       const turn = tmp2.x * tmp3.z - tmp2.z * tmp3.x;
       car.rotateZ(THREE.MathUtils.clamp(turn * 1.6, -0.06, 0.06) * moving);
     });
@@ -284,6 +427,141 @@ export function createLiveScene(
   const flightHop = (from: THREE.Vector3, to: THREE.Vector3) =>
     Math.max(0.35, Math.min(OVERVIEW_ZOOM * 0.6, Math.hypot(to.x - from.x, to.z - from.z) / DISTANCE_PER_ZOOM));
 
+  // ---- Showcase run ------------------------------------------------------
+  // The trains run on their own clock: real speed, with your train's station stops sped up by
+  // DWELL_WARP. It starts with your train in the terminus dwell at Suối Tiên, CINEMATIC_COUNTDOWN
+  // seconds before it leaves; the other trains keep their timetable around it.
+  type Cinematic = {
+    mode: CinematicMode;
+    clock: number;
+    rate: number;
+    since: number;
+    snap: boolean;
+    azimuth: number;
+    zoom: number;
+    pitch: number;
+    market: number;
+    /** Station position of your train last frame */
+    at: number;
+    /** Your train was stopped at a station last frame (its stops run faster) */
+    dwelling: boolean;
+    /** Extra elevation that keeps the camera itself out of a tower, eased */
+    clear: number;
+    /** The train's heading, smoothed so a curve in the track turns the shot gently */
+    heading: number;
+    /** The camera follows the shots; false once the viewer takes over (pan, a station…) */
+    directed: boolean;
+    /**
+     * 0..1: how tightly the focus is locked to the train. A time-lapsed train moves far too fast
+     * for an eased follow (it would leave the frame), so the lock is rigid, ramping up over a
+     * second only when the director takes the camera back from the viewer.
+     */
+    lock: number;
+    /** When Start was pressed (the rain run's weather is timed from it) */
+    started: number;
+  };
+  let cine: Cinematic | null = null;
+  /** The rain run: weather on, and the train a little slower than real time */
+  let cineWeather = false;
+  let cinePreset: WeatherPreset = 'storm';
+  /** Station your train starts from (13 = Suối Tiên), heading for Bến Thành */
+  let cineFrom = model.stationU.length - 1;
+  /** Seconds into the run that Start jumps to (a cut that begins mid-run), 0 for the whole run */
+  let cineSkip = 0;
+  let cineSpeed = 1;
+  /** Seconds from Start to departure (the showcase run's countdown, or the rain run's hold) */
+  let cineHold = CINEMATIC_COUNTDOWN;
+  let flash = 0;
+  let onCinematic: ((mode: CinematicMode) => void) | null = null;
+  const market = BEN_THANH_MARKET_CENTRE
+    ? new THREE.Vector3(BEN_THANH_MARKET_CENTRE.x, 0, BEN_THANH_MARKET_CENTRE.y)
+    : new THREE.Vector3(MAP.stations[0].x, 0, MAP.stations[0].y);
+  const cineFocus = new THREE.Vector3();
+  /** Where your train stopped at Bến Thành: the closing shot stays on it after the train moves on */
+  const arrival = new THREE.Vector3();
+  const setCineMode = (mode: CinematicMode, seconds: number) => {
+    if (!cine || cine.mode === mode) return;
+    cine.mode = mode;
+    cine.since = seconds;
+    onCinematic?.(mode);
+  };
+  const resetCinematic = (mode: CinematicMode) => {
+    const seconds = performance.now() / 1000;
+    cine = {
+      mode,
+      // Your train in its terminus dwell at Suối Tiên, doors open, at most DOOR_LEAD seconds from
+      // leaving (stateAt() shifts each train by k × cycle / TRAIN_COUNT; undo that for yours)
+      clock:
+        timetable.departs(cineFrom, -1) - Math.min(cineHold, DOOR_LEAD) - (YOUR_TRAIN * timetable.cycle) / TRAIN_COUNT,
+      rate: 0,
+      since: seconds,
+      snap: true,
+      azimuth: 0,
+      zoom: 0,
+      pitch: 0,
+      market: 0,
+      at: cineFrom,
+      directed: true,
+      lock: 1,
+      started: seconds,
+      dwelling: true,
+      clear: 0,
+      heading: NaN,
+    };
+    focus = { kind: 'free' };
+    flight = null;
+    onCinematic?.(mode);
+  };
+  /**
+   * One frame of the run's clock: frozen until Start, real time from then on, station stops sped
+   * up once under way. A hold longer than the dwell left waits with the clock stopped, doors
+   * open, then runs the last DOOR_LEAD seconds in real time so the doors close just before the
+   * train leaves. Also moves the run on from countdown to run to done.
+   */
+  const stepCinematic = (c: Cinematic, seconds: number, dt: number) => {
+    const holding = c.mode === 'countdown' && seconds - c.started < cineHold - DOOR_LEAD;
+    const goal = c.mode === 'ready' || holding ? 0 : c.mode !== 'run' ? 1 : c.dwelling ? DWELL_WARP : cineSpeed;
+    c.rate += (goal - c.rate) * damp(4, dt);
+    if (c.mode === 'ready' || holding) c.rate = 0;
+    c.clock += dt * c.rate;
+    const hero = timetable.stateAt(c.clock, YOUR_TRAIN);
+    c.dwelling = hero.phase === 'dwell';
+    if (c.mode === 'countdown' && hero.phase === 'move') setCineMode('run', seconds);
+    else if (c.mode === 'run' && hero.phase === 'dwell' && hero.station === 0) setCineMode('done', seconds);
+  };
+  // Last camera angles, so control can pass between the director and the viewer without a jump
+  let lastAzimuth = BASE_YAW;
+  let lastPitch = DEFAULT_PITCH;
+  /** The viewer takes the camera: the gesture controls continue from the directed shot */
+  const releaseDirector = () => {
+    if (!cine?.directed) return;
+    cine.directed = false;
+    const turn = lastAzimuth - BASE_YAW - yaw;
+    yaw += Math.atan2(Math.sin(turn), Math.cos(turn));
+    controls.yaw.set(yaw);
+    pitch = lastPitch;
+    controls.pitch.set(THREE.MathUtils.clamp(lastPitch, PITCH_RANGE[0], PITCH_RANGE[1]));
+    controls.zoom.set(zoom);
+  };
+  /** Back to the directed shots, easing in from wherever the camera is now */
+  const resumeDirector = () => {
+    if (!cine || cine.directed) return;
+    cine.directed = true;
+    cine.lock = 0;
+    cine.zoom = zoom;
+    cine.pitch = lastPitch;
+    cine.azimuth = lastAzimuth;
+    focus = { kind: 'free' };
+    flight = null;
+  };
+  /** Station position of a point along the line: 0 = Bến Thành … 13 = Suối Tiên */
+  const stationAt = (u: number) => {
+    const su = model.stationU;
+    let i = 0;
+    while (i < su.length - 2 && su[i + 1] < u) i++;
+    return i + THREE.MathUtils.clamp((u - su[i]) / (su[i + 1] - su[i]), 0, 1);
+  };
+
   let onFrame: ((info: FrameInfo) => void) | null = null;
   let lastSeconds = 0;
   const busy = new Uint8Array(stationAnchors.length);
@@ -297,7 +575,9 @@ export function createLiveScene(
     const dt = lastSeconds ? Math.min(0.05, seconds - lastSeconds) : 1 / 60;
     lastSeconds = seconds;
 
-    const states = trains.map((_, k) => placeTrain(k, seconds));
+    if (cine) stepCinematic(cine, seconds, dt);
+    const states = trains.map((_, k) => placeTrain(k, cine ? cine.clock : seconds));
+    if (cine?.mode === 'done' && cine.since === seconds) arrival.copy(trains[YOUR_TRAIN].cars[1].position).setY(0);
     trains.forEach((t, k) =>
       t.cars.forEach((car, c) => {
         const ug = undergroundNow[k] && !farView;
@@ -315,17 +595,61 @@ export function createLiveScene(
     city.update(seconds);
     passengers.update(seconds, states);
 
-    // Day / night
-    night += (nightTarget - night) * damp(2.4, dt);
+    // Weather (the rain run): golden hour, then wind, clouds and rain, timed from Start
+    let sunset = 0;
+    let cloud = 0;
+    if (cine && cineWeather) {
+      const t = cine.mode === 'ready' ? 0 : seconds - cine.started;
+      const w = weatherAt(t, cinePreset);
+      sunset = w.sunset;
+      cloud = w.cloud;
+      windUniform.value = w.wind;
+      rainUniform.value = w.rain;
+      leavesUniform.value = w.leaves;
+      // The wind blows across the view (towards screen right: last frame's camera), turning
+      // slowly as the camera pans; leaves travel 3.3 units/s per unit of wind (~15 m/s in a gale)
+      const across = Math.atan2(-cameraDir.x, cameraDir.z);
+      const dirNow = Math.atan2(windDirUniform.value.y, windDirUniform.value.x);
+      const turn = Math.atan2(Math.sin(across - dirNow), Math.cos(across - dirNow));
+      const angle = dirNow + turn * damp(0.5, dt);
+      windDirUniform.value.set(Math.cos(angle), Math.sin(angle));
+      windTravelUniform.value.addScaledVector(windDirUniform.value, w.wind * 3.3 * dt);
+      night = w.night;
+      flash *= Math.exp(-dt * 9);
+      for (const at of lightningOf(cinePreset)) if (t >= at && t - dt < at) flash = 1;
+    } else {
+      windUniform.value = 0;
+      rainUniform.value = 0;
+      leavesUniform.value = 0;
+      night += (nightTarget - night) * damp(2.4, dt);
+    }
+
+    // Autumn crowns turn over a few seconds, tree by tree (shaders.ts autumnTint)
+    autumnUniform.value += (autumnTarget - autumnUniform.value) * damp(0.8, dt);
+
+    // Day / night, through the weather's palettes; a lightning flash washes over everything
+    const mix = (out: THREE.Color, k: keyof typeof DAY) =>
+      out
+        .copy(DAY[k] as THREE.Color)
+        .lerp(SUNSET[k] as THREE.Color, sunset)
+        .lerp(STORM[k] as THREE.Color, cloud)
+        .lerp(NIGHT[k] as THREE.Color, night)
+        .lerp(WHITE, flash * 0.55);
+    const level = (k: 'hemi' | 'sunIntensity') =>
+      THREE.MathUtils.lerp(
+        THREE.MathUtils.lerp(THREE.MathUtils.lerp(DAY[k], SUNSET[k], sunset), STORM[k], cloud),
+        NIGHT[k],
+        night
+      );
     nightUniform.value = night;
-    clear.lerpColors(DAY.clear, NIGHT.clear, night);
+    mix(clear, 'clear');
     renderer.setClearColor(clear, 1);
     fog.color.copy(clear);
-    hemi.color.lerpColors(DAY.sky, NIGHT.sky, night);
-    hemi.groundColor.lerpColors(DAY.ground, NIGHT.ground, night);
-    hemi.intensity = THREE.MathUtils.lerp(DAY.hemi, NIGHT.hemi, night);
-    sun.color.lerpColors(DAY.sun, NIGHT.sun, night);
-    sun.intensity = THREE.MathUtils.lerp(DAY.sunIntensity, NIGHT.sunIntensity, night);
+    mix(hemi.color, 'sky');
+    mix(hemi.groundColor, 'ground');
+    hemi.intensity = level('hemi') + flash * 1.8;
+    mix(sun.color, 'sun');
+    sun.intensity = level('sunIntensity') + flash * 1.2;
 
     // Route glow ahead of the followed (or your) train
     const glowTrain = focus.kind === 'train' ? focus.index : YOUR_TRAIN;
@@ -349,6 +673,7 @@ export function createLiveScene(
       idleSince = seconds;
     }
     if (dx !== 0 || dz !== 0) {
+      releaseDirector();
       focus = { kind: 'free' };
       flight = null;
       target.x += dx;
@@ -356,7 +681,71 @@ export function createLiveScene(
       idleSince = seconds;
     }
     let hop = 0;
-    if (flight) {
+    let camPitch = -1;
+    let camAzimuth = 0;
+    if (cine) cine.at = stationAt(states[YOUR_TRAIN].u);
+    if (cine?.directed) {
+      // Directed camera: the shot for where the train is, eased so the moves stay calm
+      const hero = states[YOUR_TRAIN];
+      const sinceStart = cine.mode === 'ready' ? 0 : seconds - cine.started;
+      // The song runs follow the music's timeline; the others key their shots to the stations
+      const river = cineFrom !== model.stationU.length - 1;
+      const shot = cineWeather && !river ? rainShotAt(sinceStart) : shotAt(cine.mode === 'done' ? 0 : cine.at, river);
+      model.curve.getTangentAt(hero.u, tmp2);
+      // Inbound the train runs against the curve, so "behind it" is along the tangent. The rain
+      // run smooths it over several seconds: the shot turns with the line, never with each bend
+      const behindNow = Math.atan2(tmp2.z, tmp2.x);
+      if (Number.isNaN(cine.heading) || cine.snap) cine.heading = behindNow;
+      const bend = Math.atan2(Math.sin(behindNow - cine.heading), Math.cos(behindNow - cine.heading));
+      cine.heading += bend * (cineWeather ? damp(0.35, dt) : 1);
+      const behind = cine.heading;
+      const held = seconds - cine.since;
+      // No endless spin: still while waiting for Start; through the platform hold a slow glide out
+      // and back that lands on the departure angle as the train leaves; a capped drift to close
+      const orbit = cineWeather
+        ? 0
+        : cine.mode === 'countdown'
+          ? Math.sin(Math.PI * Math.min(1, held / cineHold)) * 0.22
+          : cine.mode === 'done'
+            ? Math.min(0.6, held * 0.03)
+            : 0;
+      const goal = behind + shot.side + orbit + Math.sin(seconds * 0.2) * (cineWeather ? 0.015 : 0.05);
+      // The rain run's shots are already eased; follow them softly but without lag building up
+      const ease = cineWeather ? 1.3 : 0.9;
+      const k = cine.snap ? 1 : damp(ease, dt);
+      const turn = Math.atan2(Math.sin(goal - cine.azimuth), Math.cos(goal - cine.azimuth));
+      cine.azimuth += turn * k;
+      cine.zoom +=
+        ((cine.mode === 'done' ? shot.zoom + Math.min(1, held * 0.08) : shot.zoom) - cine.zoom) *
+        (cine.snap ? 1 : damp(ease, dt));
+      cine.pitch += (shot.pitch - cine.pitch) * (cine.snap ? 1 : damp(ease, dt));
+      cine.market += (shot.market - cine.market) * (cine.snap ? 1 : damp(1.2, dt));
+      if (cine.mode === 'done') cineFocus.copy(arrival);
+      else cineFocus.copy(trains[YOUR_TRAIN].cars[1].position);
+      cineFocus.lerp(market, cine.market);
+      cine.lock = Math.min(1, cine.lock + dt / 1.2);
+      target.lerp(cineFocus, cine.snap ? 1 : THREE.MathUtils.lerp(damp(4, dt), 1, smooth(0, 1, cine.lock)));
+      // Towers may pass in front of the train (that is part of the shot), but the camera itself
+      // must never end up inside one, or the whole frame turns grey. The lowest pitch that clears
+      // every roof around (and a little ahead of) the camera is solved directly, then eased, so
+      // the camera rises over a tower in one smooth move instead of in steps
+      const reach = DISTANCE_PER_ZOOM * cine.zoom;
+      const across = Math.cos(cine.pitch) * reach;
+      let need = -Infinity;
+      for (let t = 0.6; t <= 1.3; t += 0.05) {
+        const x = target.x + Math.cos(cine.azimuth) * across * t;
+        const z = target.z + Math.sin(cine.azimuth) * across * t;
+        const roof = city.skylineAt(x, z) + 2;
+        if (roof <= target.y) continue;
+        need = Math.max(need, Math.asin(Math.min(1, (roof - target.y) / (reach * t))));
+      }
+      const lift = Math.max(0, need - cine.pitch);
+      cine.clear += (lift - cine.clear) * (cine.snap ? 1 : damp(lift > cine.clear ? 2.2 : 0.6, dt));
+      zoom = cine.zoom;
+      camPitch = Math.min(1.3, cine.pitch + cine.clear);
+      camAzimuth = cine.azimuth;
+      cine.snap = false;
+    } else if (flight) {
       // Pan and zoom share the flight, like Maps: flying in, the camera travels while still high
       // and settles in at the end; flying out, it pulls back first. Zoom eases in log space, so
       // the city scales at an even rate instead of snapping in before the camera moves.
@@ -400,10 +789,13 @@ export function createLiveScene(
       );
       proxies.instanceMatrix.needsUpdate = true;
     }
-    fog.near = distance * 0.95;
-    fog.far = distance * 2.3;
+    // Close directed shots look out over the city, so their fog starts no nearer than 70 units
+    // (~300 m); rain and cloud still close it in
+    const reachOut = cine?.directed ? 70 : 0;
+    fog.near = Math.max(distance * 0.95, reachOut);
+    fog.far = Math.max(distance * 2.3, reachOut * 2.6) * (1 - cloud * 0.25 - Math.min(1.5, rainUniform.value) * 0.12);
     // Nothing past the fog is visible, so clip there: depth precision and fewer tiles to draw
-    const far = distance * 2.6 + 60;
+    const far = Math.max(distance * 2.6, reachOut * 2.8) + 60;
     const nearPlane = Math.max(0.3, distance * 0.008);
     if (Math.abs(camera.far - far) > far * 0.02 || camera.near !== nearPlane) {
       camera.far = far;
@@ -416,8 +808,11 @@ export function createLiveScene(
     pitch += (controls.pitch.get() - pitch) * damp(12, dt);
     // A slow breathing drift so the city never looks frozen; calms down while interacting
     const calm = smooth(0, 3, seconds - idleSince);
-    const a = BASE_YAW + yaw + Math.sin(seconds * 0.11) * 0.035 * calm;
-    cameraDir.set(Math.cos(pitch) * Math.cos(a), Math.sin(pitch), Math.cos(pitch) * Math.sin(a));
+    const a = cine?.directed ? camAzimuth : BASE_YAW + yaw + Math.sin(seconds * 0.11) * 0.035 * calm;
+    const el = cine?.directed ? camPitch : pitch;
+    lastAzimuth = a;
+    lastPitch = el;
+    cameraDir.set(Math.cos(el) * Math.cos(a), Math.sin(el), Math.cos(el) * Math.sin(a));
     camera.position.copy(target).addScaledVector(cameraDir, distance);
     camera.lookAt(target);
 
@@ -442,7 +837,20 @@ export function createLiveScene(
       camera.setViewOffset(width, height, side, offset, width, height);
     }
 
-    sun.position.set(target.x - 24, 46, target.z + 18);
+    // A golden-hour sun sits low
+    sun.position.set(target.x - 24, 46 - sunset * 28, target.z + 18);
+    // In the rain run both layers draw from the start (fully transparent until the weather calls
+    // for them), so their shaders compile while the train waits instead of stalling a frame later
+    rain.visible = cineWeather || rainUniform.value > 0.01;
+    leaves.visible = cineWeather || leavesUniform.value > 0.01;
+    if (leaves.visible) {
+      leavesShader.uniforms.center.value.copy(target);
+      leavesShader.uniforms.size.value = THREE.MathUtils.clamp(distance * 1.4, 40, 140);
+    }
+    if (rain.visible) {
+      rainShader.uniforms.center.value.copy(target);
+      rainShader.uniforms.size.value = THREE.MathUtils.clamp(distance * 1.5, 50, 180);
+    }
     sun.target.position.copy(target);
 
     renderer.render(scene, camera);
@@ -480,13 +888,60 @@ export function createLiveScene(
   return {
     timetable,
     model,
+    /** The timetable clock: real time, or the showcase run's time-lapse */
+    now() {
+      return cine ? cine.clock : performance.now() / 1000;
+    },
+    /** Showcase run: park your train at Suối Tiên and frame it, waiting for startCinematic() */
+    setCinematic(
+      cb: (mode: CinematicMode) => void,
+      options: { weather?: WeatherPreset; speed?: number; hold?: number; from?: number; skip?: number } = {}
+    ) {
+      onCinematic = cb;
+      cineWeather = !!options.weather;
+      cinePreset = options.weather ?? 'storm';
+      cineFrom = options.from ?? model.stationU.length - 1;
+      cineSkip = options.skip ?? 0;
+      cineSpeed = options.speed ?? 1;
+      cineHold = options.hold ?? CINEMATIC_COUNTDOWN;
+      // No cars or motorbikes in the showcase runs: at these close angles they read as toys
+      city.setTraffic(false);
+      resetCinematic('ready');
+    },
+    /** Dev: camera target and position, and where your train is */
+    debugCamera() {
+      const car = trains[YOUR_TRAIN].cars[1].position;
+      const r = (v: THREE.Vector3) => [v.x, v.y, v.z].map((n) => Math.round(n * 10) / 10);
+      projectInto(car);
+      return { target: r(target), camera: r(camera.position), car: r(car), screen: [projected.x, projected.y] };
+    },
+    /** Start (or replay) the showcase run: CINEMATIC_COUNTDOWN seconds, then the train leaves */
+    startCinematic() {
+      resetCinematic('countdown');
+      if (!cine || cineSkip <= 0) return;
+      // A cut that opens partway into the run: replay the clock frame by frame up to `cineSkip`
+      // seconds after Start, so the train, the weather and the lightning are exactly where the
+      // full run has them at that moment; the camera then snaps to that shot
+      const c: Cinematic = cine;
+      const now = c.started;
+      const dt = 1 / 60;
+      for (let t = 0; t < cineSkip; t += dt) stepCinematic(c, now + t, dt);
+      const shift = cineSkip;
+      c.started = now - shift;
+      c.since -= shift;
+      c.snap = true;
+    },
     setFollow(k: number) {
+      // In the showcase run, following your train hands the camera back to the director
+      if (cine && k === YOUR_TRAIN) return resumeDirector();
+      releaseDirector();
       const seconds = performance.now() / 1000;
       focus = { kind: 'train', index: k };
       if (controls.zoom.get() > 1.6) controls.zoom.set(1);
       startFlight(seconds, flightHop(target, trains[k].cars[0].position));
     },
     focusStation(i: number) {
+      releaseDirector();
       const seconds = performance.now() / 1000;
       const a = stationAnchors[i];
       focus = { kind: 'point', point: new THREE.Vector3(a.x, 0, a.z) };
@@ -555,12 +1010,17 @@ export function createLiveScene(
       startFlight(seconds, flightHop(target, point));
     },
     showOverview() {
+      releaseDirector();
       const seconds = performance.now() / 1000;
       controls.yaw.set(0);
       controls.pitch.set(DEFAULT_PITCH);
       focus = { kind: 'point', point: OVERVIEW_TARGET.clone() };
       controls.zoom.set(OVERVIEW_ZOOM);
       startFlight(seconds, 0);
+    },
+    /** Autumn colours for the broadleaf trees */
+    setAutumn(on: boolean) {
+      autumnTarget = on ? 1 : 0;
     },
     setNight(on: boolean) {
       nightTarget = on ? 1 : 0;

@@ -17,6 +17,11 @@ const BITEXCO = find((b) => b.name === 'Bitexco Financial Tower');
 const BEN_THANH_MARKET = find((b) => b.name === 'Chợ Bến Thành');
 const OPERA = find((b) => b.name === 'Nhà hát Thành phố');
 
+/** Centre of Chợ Bến Thành's footprint (the showcase run ends framing it) */
+export const BEN_THANH_MARKET_CENTRE = BEN_THANH_MARKET
+  ? BEN_THANH_MARKET.ring.reduce((c, p) => c.add(p), new THREE.Vector2()).divideScalar(BEN_THANH_MARKET.ring.length)
+  : null;
+
 /** Ground kept clear of infill houses and trees around the landmarks: x, z, radius */
 export const LANDMARK_KEEP_OUT: [number, number, number][] = [];
 
