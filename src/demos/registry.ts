@@ -100,11 +100,11 @@ export const demos: Demo[] = [
     id: 'metro-river',
     title: 'Metro · Line 1 River Run',
     description:
-      'From Thảo Điền over the Saigon River beside Cầu Sài Gòn, on a clear autumn morning, with the live sheet and the arrival chime.',
+      'From Thảo Điền over the Saigon River beside Cầu Sài Gòn, Landmark 81 ahead and a train passing on the river, on a clear autumn morning.',
     vi: {
       title: 'Metro · Tuyến 1 Qua sông Sài Gòn',
       description:
-        'Từ Thảo Điền vượt sông Sài Gòn cạnh cầu Sài Gòn, buổi sáng mùa thu trong xanh, có sheet và chuông báo ga.',
+        'Từ Thảo Điền vượt sông Sài Gòn cạnh cầu Sài Gòn, Landmark 81 phía trước, tàu ngược chiều chạy ngang trên sông, sáng mùa thu.',
     },
     author: 'VG Team',
     component: MetroRiver,

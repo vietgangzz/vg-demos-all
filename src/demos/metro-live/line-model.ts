@@ -145,8 +145,10 @@ export function createTimetable(model: LineModel, trainCount: number) {
 
   const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
+  /** Extra timetable offset per train (seconds), set by a showcase run to stage a meeting */
+  const shifts = new Float64Array(trainCount);
   const stateAt = (seconds: number, train: number): TrainState => {
-    const time = (((seconds + (train * cycle) / trainCount) % cycle) + cycle) % cycle;
+    const time = (((seconds + (train * cycle) / trainCount + shifts[train]) % cycle) + cycle) % cycle;
     const seg = segments.find((s) => time >= s.start && time < s.end) ?? segments[segments.length - 1];
     const progress = (time - seg.start) / (seg.end - seg.start);
     const remaining = seg.end - time;
@@ -178,7 +180,26 @@ export function createTimetable(model: LineModel, trainCount: number) {
   const departs = (station: number, dir: 1 | -1) =>
     segments.find((g) => g.kind === 'dwell' && g.station === station && g.dir === dir)?.end ?? inbound;
 
-  return { stateAt, cycle, inbound, departs };
+  /** When a train moving from station `from` to `to` passes `u` (seconds into the cycle) */
+  const passes = (u: number, from: number, to: number) => {
+    const seg = segments.find((g) => g.kind === 'move' && g.from === from && g.to === to);
+    if (!seg || seg.kind !== 'move') return 0;
+    const a = model.stationU[from];
+    const b = model.stationU[to];
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if ((a + (b - a) * ease(mid) - u) * Math.sign(b - a) < 0) lo = mid;
+      else hi = mid;
+    }
+    return seg.start + ((lo + hi) / 2) * (seg.end - seg.start);
+  };
+  const setShift = (train: number, seconds: number) => {
+    shifts[train] = seconds;
+  };
+
+  return { stateAt, cycle, inbound, departs, passes, setShift };
 }
 
 export type Timetable = ReturnType<typeof createTimetable>;

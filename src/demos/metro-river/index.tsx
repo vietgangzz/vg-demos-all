@@ -1,6 +1,9 @@
 import MetroLive from '@/demos/metro-live';
 
-/** Thảo Điền over the Saigon River beside Cầu Sài Gòn, on a clear autumn morning */
+/**
+ * From Thảo Điền over the Saigon River beside Cầu Sài Gòn towards Landmark 81, on a clear autumn
+ * morning; an outbound train passes yours over the river
+ */
 export default function MetroRiver() {
-  return <MetroLive cinematic weather="clear" from={5} />;
+  return <MetroLive cinematic weather="clear" from={5} meet={4.2} />;
 }

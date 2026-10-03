@@ -75,6 +75,8 @@ export default function MetroLive({
   weather,
   from = STATIONS.length - 1,
   skip = 0,
+  dir = -1,
+  meet,
 }: {
   cinematic?: boolean;
   /**
@@ -87,6 +89,10 @@ export default function MetroLive({
   from?: number;
   /** Seconds into the run that Start jumps to: a cut that begins mid-run */
   skip?: number;
+  /** -1 towards Bến Thành (default), 1 out towards Suối Tiên */
+  dir?: 1 | -1;
+  /** Station position where an oncoming train passes yours (the river run) */
+  meet?: number;
 }) {
   // The storm run is filmed under the music: just the map, no door chime
   const bare = weather === 'storm';
@@ -169,7 +175,8 @@ export default function MetroLive({
           // The song runs hold at the platform for the first half of the chorus and run slower;
           // the river run leaves after a short pause at the timetable's speed
           weather === 'clear'
-            ? { weather, hold: 4, from }
+            ? // The river run keeps the stops at full length, so the door chimes play out
+              { weather, hold: 4, from, dir, warpStops: false, meet }
             : weather
               ? { weather, speed: RAIN_RUN_SPEED, hold: RAIN_HOLD, from, skip }
               : { from }
@@ -185,7 +192,7 @@ export default function MetroLive({
       if (cinematic) lineClock.setSource(null);
       live?.dispose();
     };
-  }, [panX, panZ, zoom, sheet, yaw, pitch, frame, cinematic, weather, from, skip]);
+  }, [panX, panZ, zoom, sheet, yaw, pitch, frame, cinematic, weather, from, skip, dir, meet]);
 
   const startRun = () => {
     Presets.System.impactMedium();
@@ -387,7 +394,9 @@ export default function MetroLive({
             style={styles.startButton}>
             <View style={styles.startRow}>
               <SymbolView name="play.fill" size={17} tintColor={GREEN} />
-              <Text style={[styles.startText, isNight && { color: '#FFFFFF' }]}>{t.start(STATIONS[from].name)}</Text>
+              <Text style={[styles.startText, isNight && { color: '#FFFFFF' }]}>
+                {t.start(STATIONS[from].name, dir === 1 ? STATIONS[STATIONS.length - 1].name : STATIONS[0].name)}
+              </Text>
             </View>
           </GlassButton>
         </Animated.View>
@@ -496,13 +505,17 @@ export default function MetroLive({
 /** Haptics and the door chime for your train, without re-rendering the screen */
 function YourTrainEvents({ scene, chime: withChime }: { scene: LiveScene; chime: boolean }) {
   const chime = useSound(require('@/assets/sounds/door-chime.wav'));
+  // Door-closing warning: beeps, then the doors meet ~1.6 s in (assets/sounds/door-close.wav)
+  const doorClose = useSound(require('@/assets/sounds/door-close.wav'));
   const key = useLineKey((now) => {
     const s = scene.timetable.stateAt(now, YOUR_TRAIN);
-    return `${s.phase}|${s.station}|${s.phase === 'dwell' && s.progress > 0.78 ? 1 : 0}`;
+    const dwell = s.phase === 'dwell';
+    return `${s.phase}|${s.station}|${dwell && s.progress > 0.78 ? 1 : 0}|${dwell && s.progress > 0.5 ? 1 : 0}`;
   });
-  const [phase, stationKey, closingKey] = key.split('|');
+  const [phase, stationKey, closingKey, warnKey] = key.split('|');
   const dwelling = phase === 'dwell';
   const closing = closingKey === '1';
+  const warning = warnKey === '1';
   const station = Number(stationKey);
 
   useEffect(() => {
@@ -511,6 +524,10 @@ function YourTrainEvents({ scene, chime: withChime }: { scene: LiveScene; chime:
       if (withChime) chime();
     }
   }, [dwelling, station, chime, withChime]);
+  useEffect(() => {
+    // The warning starts halfway through the stop, so the doors meet as they visibly close
+    if (warning && withChime) doorClose();
+  }, [warning, station, doorClose, withChime]);
   useEffect(() => {
     // A soft latch as your train's doors shut
     if (closing) Presets.latch();

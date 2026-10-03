@@ -24,6 +24,8 @@ export type Shot = {
   side: number;
   /** 0 frames the train, 1 frames Chợ Bến Thành */
   market: number;
+  /** Units the framing is raised above the train, to fit a tall skyline behind it (default 0) */
+  rise?: number;
 };
 
 // The first stretch, Suối Tiên to Đại học Quốc gia (about 37 s at real speed), is keyed closely;
@@ -60,41 +62,42 @@ const SHOTS: Shot[] = [
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
-// The river run (Metro · Line 1 River Run): from Thảo Điền over the Saigon River beside Cầu Sài
-// Gòn, on to Văn Thánh. The camera stays on the train's outer side, so the road bridge (on the
-// far side of the line) and Landmark 81 sit behind the train; it drops low over the water.
+// The river run (Metro · Line 1 River Run): from Thảo Điền in District 2 over the Saigon River
+// beside Cầu Sài Gòn into Tân Cảng, Landmark 81 straight ahead. The camera rides close behind
+// the train, just off its outer side, so the tower grows in front of it; an outbound train passes
+// on the other track over the river (scene.ts).
 const RIVER_SHOTS: Shot[] = [
   // Thảo Điền: close and low beside the train at the platform
   { at: 5, zoom: 0.5, pitch: 0.34, side: -1.9, market: 0 },
-  // Pulling out along Xa lộ Hà Nội: rise into a three-quarter chase
-  { at: 4.85, zoom: 0.85, pitch: 0.46, side: -1.5, market: 0 },
-  { at: 4.55, zoom: 1.15, pitch: 0.56, side: -1.0, market: 0 },
-  // Nearing the river: swing out wide and low, the water opening up under the viaduct
-  { at: 4.32, zoom: 1.35, pitch: 0.32, side: -1.55, market: 0 },
-  // Over the Saigon River, Cầu Sài Gòn alongside
-  { at: 4.15, zoom: 1.3, pitch: 0.27, side: -1.75, market: 0 },
-  // Tân Cảng, Landmark 81 beside the line
-  { at: 4, zoom: 1.05, pitch: 0.4, side: -1.35, market: 0 },
-  { at: 3.5, zoom: 1.1, pitch: 0.5, side: -0.95, market: 0 },
-  // Văn Thánh
-  { at: 3, zoom: 0.8, pitch: 0.42, side: -1.5, market: 0 },
-  { at: 2.6, zoom: 1.3, pitch: 0.75, side: -0.7, market: 0 },
-  // On towards the tunnel and Bến Thành
-  { at: 1.6, zoom: 1.4, pitch: 0.95, side: -0.5, market: 0 },
-  { at: 0, zoom: 2.2, pitch: 0.7, side: -0.6, market: 0.6 },
+  // Pulling out: ease round behind the train
+  { at: 4.85, zoom: 0.75, pitch: 0.3, side: -1.2, market: 0, rise: 1 },
+  // Along Xa lộ Hà Nội: low behind, Landmark 81 ahead (it lies ~40° off the line here, so the
+  // camera sits that far round to put the tower straight beyond the train)
+  { at: 4.6, zoom: 1.0, pitch: 0.16, side: -0.85, market: 0, rise: 3.5 },
+  // Over the Saigon River: the tower filling the view ahead, the oncoming train passing
+  { at: 4.32, zoom: 1.1, pitch: 0.14, side: -0.72, market: 0, rise: 4.5 },
+  { at: 4.12, zoom: 1.0, pitch: 0.17, side: -0.55, market: 0, rise: 3.5 },
+  // Into Tân Cảng beside Landmark 81
+  { at: 4, zoom: 0.8, pitch: 0.3, side: -1.2, market: 0, rise: 1 },
+  { at: 3.6, zoom: 1.0, pitch: 0.42, side: -0.8, market: 0 },
+  // On towards Văn Thánh
+  { at: 3, zoom: 0.8, pitch: 0.42, side: -1.4, market: 0 },
+  { at: 2, zoom: 1.2, pitch: 0.6, side: -0.7, market: 0 },
 ];
 
 /** Camera values at station position `at`, blended between the two surrounding shots */
 export function shotAt(at: number, river = false): Shot {
   const keys = river ? RIVER_SHOTS : SHOTS;
-  if (at >= keys[0].at) return keys[0];
-  const last = keys[keys.length - 1];
-  if (at <= last.at) return last;
+  // Keys run down the line (13 → 0) for the inbound runs, up it for the outbound river run
+  const down = keys[0].at > keys[keys.length - 1].at;
+  const before = (k: Shot) => (down ? k.at >= at : k.at <= at);
+  if (!before(keys[0])) return keys[0];
+  if (before(keys[keys.length - 1])) return keys[keys.length - 1];
   let i = 0;
-  while (keys[i + 1].at > at) i++;
+  while (before(keys[i + 1])) i++;
   const a = keys[i];
   const b = keys[i + 1];
-  const t = smooth((a.at - at) / (a.at - b.at));
+  const t = smooth((at - a.at) / (b.at - a.at));
   const mix = (x: number, y: number) => x + (y - x) * t;
   return {
     at,
@@ -102,6 +105,7 @@ export function shotAt(at: number, river = false): Shot {
     pitch: mix(a.pitch, b.pitch),
     side: mix(a.side, b.side),
     market: mix(a.market, b.market),
+    rise: mix(a.rise ?? 0, b.rise ?? 0),
   };
 }
 

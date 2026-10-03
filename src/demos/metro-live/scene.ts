@@ -441,6 +441,8 @@ export function createLiveScene(
     zoom: number;
     pitch: number;
     market: number;
+    /** Units the framing is raised above the train */
+    rise: number;
     /** Station position of your train last frame */
     at: number;
     /** Your train was stopped at a station last frame (its stops run faster) */
@@ -465,7 +467,12 @@ export function createLiveScene(
   let cineWeather = false;
   let cinePreset: WeatherPreset = 'storm';
   /** Station your train starts from (13 = Suối Tiên), heading for Bến Thành */
-  let cineFrom = model.stationU.length - 1;
+  const lastStation = model.stationU.length - 1;
+  let cineFrom = lastStation;
+  /** -1 towards Bến Thành (the default), 1 out towards Suối Tiên */
+  let cineDir: 1 | -1 = -1;
+  /** Station stops sped up (DWELL_WARP) or at the timetable's own length */
+  let cineWarpStops = true;
   /** Seconds into the run that Start jumps to (a cut that begins mid-run), 0 for the whole run */
   let cineSkip = 0;
   let cineSpeed = 1;
@@ -492,7 +499,9 @@ export function createLiveScene(
       // Your train in its terminus dwell at Suối Tiên, doors open, at most DOOR_LEAD seconds from
       // leaving (stateAt() shifts each train by k × cycle / TRAIN_COUNT; undo that for yours)
       clock:
-        timetable.departs(cineFrom, -1) - Math.min(cineHold, DOOR_LEAD) - (YOUR_TRAIN * timetable.cycle) / TRAIN_COUNT,
+        timetable.departs(cineFrom, cineDir) -
+        Math.min(cineHold, DOOR_LEAD) -
+        (YOUR_TRAIN * timetable.cycle) / TRAIN_COUNT,
       rate: 0,
       since: seconds,
       snap: true,
@@ -500,6 +509,7 @@ export function createLiveScene(
       zoom: 0,
       pitch: 0,
       market: 0,
+      rise: 0,
       at: cineFrom,
       directed: true,
       lock: 1,
@@ -520,14 +530,17 @@ export function createLiveScene(
    */
   const stepCinematic = (c: Cinematic, seconds: number, dt: number) => {
     const holding = c.mode === 'countdown' && seconds - c.started < cineHold - DOOR_LEAD;
-    const goal = c.mode === 'ready' || holding ? 0 : c.mode !== 'run' ? 1 : c.dwelling ? DWELL_WARP : cineSpeed;
+    const goal =
+      c.mode === 'ready' || holding ? 0 : c.mode !== 'run' ? 1 : c.dwelling && cineWarpStops ? DWELL_WARP : cineSpeed;
     c.rate += (goal - c.rate) * damp(4, dt);
     if (c.mode === 'ready' || holding) c.rate = 0;
     c.clock += dt * c.rate;
     const hero = timetable.stateAt(c.clock, YOUR_TRAIN);
     c.dwelling = hero.phase === 'dwell';
     if (c.mode === 'countdown' && hero.phase === 'move') setCineMode('run', seconds);
-    else if (c.mode === 'run' && hero.phase === 'dwell' && hero.station === 0) setCineMode('done', seconds);
+    else if (c.mode === 'run' && hero.phase === 'dwell' && hero.station === (cineDir === -1 ? 0 : lastStation)) {
+      setCineMode('done', seconds);
+    }
   };
   // Last camera angles, so control can pass between the director and the viewer without a jump
   let lastAzimuth = BASE_YAW;
@@ -689,12 +702,16 @@ export function createLiveScene(
       const hero = states[YOUR_TRAIN];
       const sinceStart = cine.mode === 'ready' ? 0 : seconds - cine.started;
       // The song runs follow the music's timeline; the others key their shots to the stations
-      const river = cineFrom !== model.stationU.length - 1;
-      const shot = cineWeather && !river ? rainShotAt(sinceStart) : shotAt(cine.mode === 'done' ? 0 : cine.at, river);
+      const river = cineFrom !== lastStation;
+      const shot =
+        cineWeather && !river
+          ? rainShotAt(sinceStart)
+          : shotAt(cine.mode === 'done' && cineDir === -1 ? 0 : cine.at, river);
       model.curve.getTangentAt(hero.u, tmp2);
       // Inbound the train runs against the curve, so "behind it" is along the tangent. The rain
       // run smooths it over several seconds: the shot turns with the line, never with each bend
-      const behindNow = Math.atan2(tmp2.z, tmp2.x);
+      // Inbound the train runs against the curve (behind it is along the tangent), outbound with it
+      const behindNow = Math.atan2(tmp2.z, tmp2.x) + (cineDir === 1 ? Math.PI : 0);
       if (Number.isNaN(cine.heading) || cine.snap) cine.heading = behindNow;
       const bend = Math.atan2(Math.sin(behindNow - cine.heading), Math.cos(behindNow - cine.heading));
       cine.heading += bend * (cineWeather ? damp(0.35, dt) : 1);
@@ -720,9 +737,11 @@ export function createLiveScene(
         (cine.snap ? 1 : damp(ease, dt));
       cine.pitch += (shot.pitch - cine.pitch) * (cine.snap ? 1 : damp(ease, dt));
       cine.market += (shot.market - cine.market) * (cine.snap ? 1 : damp(1.2, dt));
+      cine.rise += ((shot.rise ?? 0) - cine.rise) * (cine.snap ? 1 : damp(1.2, dt));
       if (cine.mode === 'done') cineFocus.copy(arrival);
       else cineFocus.copy(trains[YOUR_TRAIN].cars[1].position);
       cineFocus.lerp(market, cine.market);
+      cineFocus.y += cine.rise;
       cine.lock = Math.min(1, cine.lock + dt / 1.2);
       target.lerp(cineFocus, cine.snap ? 1 : THREE.MathUtils.lerp(damp(4, dt), 1, smooth(0, 1, cine.lock)));
       // Towers may pass in front of the train (that is part of the shot), but the camera itself
@@ -791,7 +810,8 @@ export function createLiveScene(
     }
     // Close directed shots look out over the city, so their fog starts no nearer than 70 units
     // (~300 m); rain and cloud still close it in
-    const reachOut = cine?.directed ? 70 : 0;
+    // (a clear day sees much further: the river run keeps Landmark 81 out of the haze)
+    const reachOut = cine?.directed ? (cineWeather && cinePreset === 'clear' ? 170 : 70) : 0;
     fog.near = Math.max(distance * 0.95, reachOut);
     fog.far = Math.max(distance * 2.3, reachOut * 2.6) * (1 - cloud * 0.25 - Math.min(1.5, rainUniform.value) * 0.12);
     // Nothing past the fog is visible, so clip there: depth precision and fewer tiles to draw
@@ -895,12 +915,36 @@ export function createLiveScene(
     /** Showcase run: park your train at Suối Tiên and frame it, waiting for startCinematic() */
     setCinematic(
       cb: (mode: CinematicMode) => void,
-      options: { weather?: WeatherPreset; speed?: number; hold?: number; from?: number; skip?: number } = {}
+      options: {
+        weather?: WeatherPreset;
+        speed?: number;
+        hold?: number;
+        from?: number;
+        skip?: number;
+        dir?: 1 | -1;
+        warpStops?: boolean;
+        meet?: number;
+      } = {}
     ) {
       onCinematic = cb;
       cineWeather = !!options.weather;
       cinePreset = options.weather ?? 'storm';
-      cineFrom = options.from ?? model.stationU.length - 1;
+      cineFrom = options.from ?? lastStation;
+      cineDir = options.dir ?? -1;
+      cineWarpStops = options.warpStops ?? true;
+      // Stage a meeting: shift one other train's timetable so it passes yours, on the other
+      // track, at `meet` (a station position, e.g. 4.2 = over the Saigon River)
+      for (let k = 0; k < TRAIN_COUNT; k++) timetable.setShift(k, 0);
+      if (options.meet !== undefined) {
+        const i = Math.floor(options.meet);
+        const su = model.stationU;
+        const u = su[i] + (su[i + 1] - su[i]) * (options.meet - i);
+        const [a, b] = cineDir === 1 ? [i, i + 1] : [i + 1, i];
+        const other = (YOUR_TRAIN + 3) % TRAIN_COUNT;
+        const mine = timetable.passes(u, a, b);
+        const theirs = timetable.passes(u, b, a);
+        timetable.setShift(other, theirs - mine + ((YOUR_TRAIN - other) * timetable.cycle) / TRAIN_COUNT);
+      }
       cineSkip = options.skip ?? 0;
       cineSpeed = options.speed ?? 1;
       cineHold = options.hold ?? CINEMATIC_COUNTDOWN;
