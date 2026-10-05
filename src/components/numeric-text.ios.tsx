@@ -5,6 +5,7 @@ import {
   contentTransition,
   font,
   foregroundColor,
+  kerning,
   monospacedDigit,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -21,13 +22,22 @@ function animationKey(value: string) {
  * SwiftUI `Text` with `.contentTransition(.numericText())`: changed digits roll and blur
  * into place natively, the way the system clock and timers do.
  */
-export function NumericText({ value, fontSize, color, weight = 'semibold', countsDown = false }: NumericTextProps) {
+export function NumericText({
+  value,
+  fontSize,
+  color,
+  weight = 'semibold',
+  countsDown = false,
+  family,
+  letterSpacing,
+}: NumericTextProps) {
   return (
     <Host matchContents>
       <Text
         modifiers={[
-          font({ size: fontSize, weight, design: 'rounded' }),
+          font(family ? { family, size: fontSize } : { size: fontSize, weight, design: 'rounded' }),
           monospacedDigit(),
+          ...(letterSpacing ? [kerning(letterSpacing)] : []),
           foregroundColor(color),
           contentTransition('numericText', { countsDown }),
           // The animation runs whenever this value changes; a numeric key keeps it stable

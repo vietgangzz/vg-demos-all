@@ -3,13 +3,16 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/be-vietnam-pro": "^0.4.1",
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/unbounded": "^0.4.1",
     "@expo/ui": "~57.0.21",
     "@lodev09/react-native-true-sheet": "^3.11.17",
-    "@shopify/react-native-skia": "2.6.2",
     "@typegpu/gl": "^0.12.5",
     "@typegpu/three": "^0.12.1",
     "expo": "~57.0.26",
     "expo-audio": "~57.0.5",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.20",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
@@ -31,8 +34,9 @@
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-skia": "3.0.3",
     "react-native-web": "~0.21.0",
-    "react-native-webgpu": "^0.10.4",
+    "react-native-webgpu": "0.10.5",
     "react-native-worklets": "0.10.1",
     "three": "^0.186.1",
     "typegpu": "^0.12.6"
@@ -56,6 +60,6 @@
   },
   "private": true,
   "trustedDependencies": [
-    "@shopify/react-native-skia"
+    "react-native-skia"
   ]
 }

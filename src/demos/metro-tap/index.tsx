@@ -8,7 +8,7 @@ import {
   RoundedRect,
   Skia,
   vec,
-} from '@shopify/react-native-skia';
+} from 'react-native-skia';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';

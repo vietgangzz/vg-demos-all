@@ -10,6 +10,7 @@ import MetroLive from '@/demos/metro-live';
 import MetroOnboard from '@/demos/metro-onboard';
 import MetroTap from '@/demos/metro-tap';
 import SpringCard from '@/demos/spring-card';
+import Weather from '@/demos/weather';
 
 export type Demo = {
   /** URL-safe id, used as the route param: /demo/<id> */
@@ -29,6 +30,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'weather',
+    title: 'Trời · 3D Weather',
+    description:
+      'Live weather as a little 3D world: puffy numerals, clouds, rain, storms, fog and haze. Swipe through now, rain, wind, sun and air; drag a chart to scrub 24 hours.',
+    vi: {
+      title: 'Trời · Thời tiết 3D',
+      description:
+        'Thời tiết trực tiếp thành một thế giới 3D nhỏ: số phồng, mây, mưa, dông, sương mù, khói bụi. Vuốt qua bây giờ, mưa, gió, mặt trời, không khí; kéo biểu đồ để tua 24 giờ.',
+    },
+    author: 'VG Team',
+    component: Weather,
+    hideClose: true,
+  },
   {
     id: 'metro-live',
     title: 'Metro · Line 1 Live',

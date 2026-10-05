@@ -7,7 +7,7 @@ import {
   rect,
   vec,
   type SkPoint,
-} from '@shopify/react-native-skia';
+} from 'react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Presets } from 'react-native-pulsar';
