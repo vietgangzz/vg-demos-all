@@ -30,6 +30,8 @@ import { buildCity } from './world/city';
 import { buildEnvironment } from './world/environment';
 import { ribbonGeometry } from './world/geometry';
 import { FORWARD, RIGHT } from './world/layout';
+import { tr, type Lang } from './i18n';
+import { labelSprite, setSpriteLabel, sizeSprite, stationLabel, trainPin } from './labels';
 import { BEN_THANH_MARKET_CENTRE } from './world/landmarks';
 import { MAP } from './world/map';
 import { buildPassengers } from './world/people';
@@ -578,6 +580,86 @@ export function createLiveScene(
   let onFrame: ((info: FrameInfo) => void) | null = null;
   let lastSeconds = 0;
   const busy = new Uint8Array(stationAnchors.length);
+  // ---- Station labels and train pins, as sprites in the scene (labels.ts) ----
+  const stationSprites = stationAnchors.map((anchor, i) => {
+    const idle = labelSprite(stationLabel(i, false), 100);
+    const full = labelSprite(stationLabel(i, true), 100);
+    idle.position.copy(anchor);
+    full.position.copy(anchor);
+    scene.add(idle, full);
+    return { idle, full, busy: 0 };
+  });
+  const pinSprites = trains.map((_, k) => {
+    const sprite = labelSprite(k === YOUR_TRAIN ? trainPin(' ', true) : trainPin(`T${k + 1}`, false), 101);
+    scene.add(sprite);
+    return { sprite, covered: 0, text: '' };
+  });
+  // Screen positions this frame: per station x, y, opacity; per train x, y
+  const labelScreen = new Float32Array(stationAnchors.length * 3);
+  const pinScreen = new Float32Array(TRAIN_COUNT * 2);
+  let labelLang: Lang = 'en';
+  const updateLabels = (states: TrainState[], dt: number) => {
+    camera.updateMatrixWorld();
+    busy.fill(0);
+    for (const s of states) if (s.phase === 'dwell') busy[s.station] = 1;
+    stationAnchors.forEach((anchor, i) => {
+      projectInto(anchor);
+      const { x, y, z } = projected;
+      const dist = Math.hypot(anchor.x - target.x, anchor.z - target.z);
+      const near = THREE.MathUtils.clamp(1 - (dist - 16 * zoom) / (12 * zoom), 0, 1);
+      const onScreen = z < 1 && x > -40 && x < width + 40 && y > -20 && y < height + 20 ? 1 : 0;
+      const o = near * onScreen;
+      labelScreen[i * 3] = x;
+      labelScreen[i * 3 + 1] = y;
+      labelScreen[i * 3 + 2] = o;
+      const label = stationSprites[i];
+      label.busy += (busy[i] - label.busy) * damp(9, dt);
+      (label.idle.material as THREE.SpriteNodeMaterial).opacity = o * (1 - label.busy);
+      (label.full.material as THREE.SpriteNodeMaterial).opacity = o * label.busy;
+      label.idle.visible = o * (1 - label.busy) > 0.01;
+      label.full.visible = o * label.busy > 0.01;
+      sizeSprite(label.idle, camera, height);
+      sizeSprite(label.full, camera, height);
+    });
+    trains.forEach((t, k) => {
+      const pin = pinSprites[k];
+      pin.sprite.position.copy(t.cars[0].position);
+      pin.sprite.position.y += 1.1;
+      projectInto(pin.sprite.position);
+      const { x, y, z } = projected;
+      pinScreen[k * 2] = x;
+      pinScreen[k * 2 + 1] = y;
+      if (k === YOUR_TRAIN) {
+        // Your train's pin counts down to its next departure or arrival
+        const total = Math.max(
+          0,
+          Math.ceil(timetable.stateAt(cine ? cine.clock : performance.now() / 1000, k).remaining)
+        );
+        const text = tr(labelLang).pin(`${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`);
+        if (text !== pin.text) {
+          pin.text = text;
+          const material = pin.sprite.material as THREE.SpriteNodeMaterial;
+          setSpriteLabel(pin.sprite, trainPin(text, true, material.map as THREE.DataTexture));
+        }
+      } else {
+        // Other trains step aside when they would sit on a station label (its green dot already
+        // says a train is there); two chips on top of each other read as clutter
+        let hit = false;
+        for (let i = 0; i < stationAnchors.length && !hit; i++) {
+          if (labelScreen[i * 3 + 2] < 0.25) continue;
+          const [lw] = stationSprites[i].idle.userData.size as [number, number];
+          const lx = labelScreen[i * 3] - 12;
+          const ly = labelScreen[i * 3 + 1] - 30;
+          hit = x + 15 > lx && x - 15 < lx + lw - 16 && y > ly && y - 26 < ly + 24;
+        }
+        pin.covered += ((hit ? 1 : 0) - pin.covered) * damp(12, dt);
+      }
+      const o = (z < 1 ? 1 : 0) * (1 - pin.covered);
+      (pin.sprite.material as THREE.SpriteNodeMaterial).opacity = o;
+      pin.sprite.visible = o > 0.01;
+      sizeSprite(pin.sprite, camera, height);
+    });
+  };
 
   // Paused while a full-height sheet covers the map: the JS thread then belongs to the UI
   let paused = false;
@@ -873,34 +955,27 @@ export function createLiveScene(
     }
     sun.target.position.copy(target);
 
+    updateLabels(states, dt);
     renderer.render(scene, camera);
     context.present();
 
     if (onFrame) {
-      // Fresh arrays every frame: objects handed to a shared value are frozen by Worklets
+      // Fresh arrays every frame: objects handed to a shared value are frozen by Worklets. The
+      // labels themselves are sprites in the scene; React Native keeps an invisible tap target on
+      // each station, and a frame of lag doesn't matter for a tap
       const stationInfo: number[] = new Array(stationAnchors.length * 4);
       const trainInfo: number[] = new Array(TRAIN_COUNT * 3);
-      busy.fill(0);
-      for (const s of states) if (s.phase === 'dwell') busy[s.station] = 1;
-      stationAnchors.forEach((anchor, i) => {
-        projectInto(anchor);
-        const { x, y, z } = projected;
-        const dist = Math.hypot(anchor.x - target.x, anchor.z - target.z);
-        const near = THREE.MathUtils.clamp(1 - (dist - 16 * zoom) / (12 * zoom), 0, 1);
-        const onScreen = z < 1 && x > -40 && x < width + 40 && y > -20 && y < height + 20 ? 1 : 0;
-        stationInfo[i * 4] = x;
-        stationInfo[i * 4 + 1] = y;
-        stationInfo[i * 4 + 2] = near * onScreen;
+      for (let i = 0; i < stationAnchors.length; i++) {
+        stationInfo[i * 4] = labelScreen[i * 3];
+        stationInfo[i * 4 + 1] = labelScreen[i * 3 + 1];
+        stationInfo[i * 4 + 2] = labelScreen[i * 3 + 2];
         stationInfo[i * 4 + 3] = busy[i];
-      });
-      trains.forEach((t, k) => {
-        tmp.copy(t.cars[0].position);
-        tmp.y += 1.1;
-        projectInto(tmp);
-        trainInfo[k * 3] = projected.x;
-        trainInfo[k * 3 + 1] = projected.y;
-        trainInfo[k * 3 + 2] = projected.z < 1 ? 1 : 0;
-      });
+      }
+      for (let k = 0; k < TRAIN_COUNT; k++) {
+        trainInfo[k * 3] = pinScreen[k * 2];
+        trainInfo[k * 3 + 1] = pinScreen[k * 2 + 1];
+        trainInfo[k * 3 + 2] = 1;
+      }
       onFrame({ stations: stationInfo, trains: trainInfo });
     }
   });
@@ -1065,6 +1140,10 @@ export function createLiveScene(
     /** Autumn colours for the broadleaf trees */
     setAutumn(on: boolean) {
       autumnTarget = on ? 1 : 0;
+    },
+    /** The language of the pins' text */
+    setLanguage(lang: Lang) {
+      labelLang = lang;
     },
     setNight(on: boolean) {
       nightTarget = on ? 1 : 0;

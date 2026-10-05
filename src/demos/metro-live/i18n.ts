@@ -42,7 +42,7 @@ const STRINGS = {
   },
   vi: {
     title: 'Tuyến 1 Trực tiếp',
-    trains: (n: number) => `${n} đoàn tàu`,
+    trains: (n: number) => `${n} tàu`,
     building: 'Đang dựng Sài Gòn 3D',
     loadingSub: (count: number, from: string, to: string) => `Tuyến 1 · ${count} ga · ${from} → ${to}`,
     start: (from: string, to: string) => `Bắt đầu · ${from} → ${to}`,
@@ -50,7 +50,7 @@ const STRINGS = {
     pin: (eta: string) => `Tàu của bạn · ${eta}`,
     search: 'Tìm ga',
     cancel: 'Huỷ',
-    lineStatus: (n: number) => `Tình trạng tuyến · ${n} đoàn tàu`,
+    lineStatus: (n: number) => `Tình trạng tuyến · ${n} tàu`,
     stations: 'Các ga',
     results: 'Kết quả',
     noMatch: (q: string) => `Không có ga nào khớp “${q}”`,

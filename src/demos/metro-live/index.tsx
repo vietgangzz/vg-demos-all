@@ -5,8 +5,6 @@ import { Presets } from 'react-native-pulsar';
 import Animated, {
   Easing,
   FadeIn,
-  interpolateColor,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDecay,
@@ -42,13 +40,12 @@ import { RAIN_HOLD, RAIN_RUN_SPEED, type WeatherPreset } from './cinematic';
 import { tr, useLang } from './i18n';
 import { LoadingOverlay } from './loading';
 import { NativeStatusSheet } from './native-sheet';
-import { lineClock, useCountdown, useLineKey } from './status';
+import { lineClock, useLineKey } from './status';
 import { GREEN, INK, MUTED, SPRING } from './theme';
 
-const PIN_W = 180;
 const GLASS = isLiquidGlassAvailable();
-/** Space between the floating buttons and the sheet (the reported position sits under the glass edge) */
-const FLOAT_GAP = 30;
+/** Lift of the floating buttons off the sheet position TrueSheet reports: leaves ~8 pt to the sheet's edge */
+const FLOAT_GAP = 15;
 /** Wide screens (iPhone Duo unfolded, landscape) put the sheet at the side, like Maps on iPad */
 const SIDE_SHEET_WIDTH = 380;
 /** Header capsule height (badge 34 + padding 2 × 8) */
@@ -206,6 +203,9 @@ export default function MetroLive({
   useEffect(() => {
     scene?.setAutumn(isAutumn);
   }, [scene, isAutumn]);
+  useEffect(() => {
+    scene?.setLanguage(lang);
+  }, [scene, lang]);
 
   const focusTrain = (k: number) => {
     Presets.System.selection();
@@ -366,10 +366,6 @@ export default function MetroLive({
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
             {STATIONS.map((s, i) => (
               <StationLabel key={s.code} index={i} frame={frame} onPress={() => focusStation(i)} />
-            ))}
-            {/* Pins sit above the labels; they ignore touches so labels stay tappable */}
-            {Array.from({ length: TRAIN_COUNT }, (_, k) => (
-              <TrainPin key={k} index={k} frame={frame} mine={k === YOUR_TRAIN} scene={scene} />
             ))}
           </View>
         </View>
@@ -551,113 +547,23 @@ function StationLabel({
     // Faded-out labels move off-screen so they can't catch taps
     const x = o < 0.25 ? -999 : (s[index * 4] ?? -999);
     const y = s[index * 4 + 1] ?? -999;
-    return {
-      opacity: o,
-      transform: [{ translateX: x - 12 }, { translateY: y - 30 }],
-    };
+    return { transform: [{ translateX: x - 12 }, { translateY: y - 30 }] };
   });
-  // Animate only when a train arrives or leaves, not on every frame
-  const busy = useSharedValue(0);
-  useAnimatedReaction(
-    () => frame.get().stations[index * 4 + 3] ?? 0,
-    (b, prev) => {
-      if (b !== prev) busy.set(withTiming(b, { duration: 280 }));
-    }
-  );
-  const busyStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(busy.get(), [0, 1], ['rgba(255,255,255,0.94)', 'rgba(230,246,236,0.97)']),
-    borderColor: interpolateColor(busy.get(), [0, 1], ['rgba(31,163,91,0)', 'rgba(31,163,91,1)']),
-  }));
-  const dotStyle = useAnimatedStyle(() => ({
-    width: busy.get() * 6,
-    marginLeft: busy.get() * 2,
-  }));
-
   return (
     <Animated.View style={[styles.stationSlot, style]}>
       <Pressable onPress={onPress} hitSlop={8}>
-        <Animated.View style={[styles.stationLabel, busyStyle]}>
+        {/* Laid out like the label so the tap box matches it, but invisible: the label itself
+            is a sprite in the 3D scene (labels.ts), drawn in the same frame as its station */}
+        <View style={[styles.stationLabel, styles.tapOnly]}>
           <View style={styles.stationCode}>
             <Text style={styles.stationCodeText}>{station.code}</Text>
           </View>
           <Text style={styles.stationName}>{station.name}</Text>
           {station.underground ? <Text style={styles.ug}>UG</Text> : null}
-          <Animated.View style={[styles.busyDot, dotStyle]} />
-        </Animated.View>
+        </View>
       </Pressable>
     </Animated.View>
   );
-}
-
-/** Rough label widths (code chip + name + UG tag at 11 pt), for pin-on-label checks */
-const LABEL_WIDTHS = STATIONS.map((s) => 36 + s.name.length * 6.4 + (s.underground ? 18 : 0));
-
-/** Whether train `index`'s pin overlaps a visible station label this frame */
-function pinHitsLabel(info: FrameInfo, index: number) {
-  'worklet';
-  const px = info.trains[index * 3] ?? -999;
-  const py = info.trains[index * 3 + 1] ?? -999;
-  for (let i = 0; i < LABEL_WIDTHS.length; i++) {
-    if ((info.stations[i * 4 + 2] ?? 0) < 0.25) continue;
-    // Label box starts 12 pt left of and 30 pt above its anchor (see StationLabel)
-    const lx = (info.stations[i * 4] ?? -999) - 12;
-    const ly = (info.stations[i * 4 + 1] ?? -999) - 30;
-    // Pin box: ~30 pt wide around x, 26 pt tall ending at y
-    if (px + 15 > lx && px - 15 < lx + LABEL_WIDTHS[i] && py > ly && py - 26 < ly + 24) return true;
-  }
-  return false;
-}
-
-function TrainPin({
-  index,
-  frame,
-  mine,
-  scene,
-}: {
-  index: number;
-  frame: SharedValue<FrameInfo>;
-  mine: boolean;
-  scene: LiveScene | null;
-}) {
-  // Other trains step aside when they would sit on a station label: the label's green dot
-  // already says a train is there, and two chips on top of each other read as clutter
-  const covered = useSharedValue(0);
-  useAnimatedReaction(
-    () => (mine ? false : pinHitsLabel(frame.get(), index)),
-    (hit, prev) => {
-      if (hit !== prev) covered.set(withTiming(hit ? 1 : 0, { duration: 180 }));
-    }
-  );
-  const style = useAnimatedStyle(() => {
-    const t = frame.get().trains;
-    const x = t[index * 3] ?? -999;
-    const y = t[index * 3 + 1] ?? -999;
-    const o = t[index * 3 + 2] ?? 0;
-    return {
-      opacity: o * (1 - covered.get()),
-      transform: [{ translateX: x - PIN_W / 2 }, { translateY: y - 26 }],
-    };
-  });
-
-  return (
-    <Animated.View pointerEvents="none" style={[styles.pinSlot, style]}>
-      <View style={[styles.pin, mine ? styles.pinMine : null]}>
-        {mine && scene ? (
-          // Plain text here: a SwiftUI host can't follow the pin's UI-thread transform
-          <PinCountdown scene={scene} index={index} />
-        ) : (
-          <Text style={styles.pinText}>T{index + 1}</Text>
-        )}
-      </View>
-      <View style={[styles.pinTail, mine && { borderTopColor: GREEN }]} />
-    </Animated.View>
-  );
-}
-
-function PinCountdown({ scene, index }: { scene: LiveScene; index: number }) {
-  const lang = useLang();
-  const value = useCountdown(scene, index);
-  return <Text style={[styles.pinText, { color: '#fff' }]}>{tr(lang).pin(value)}</Text>;
 }
 
 /** Apple Maps-style glass capsule: overview on top, follow-my-train below */
@@ -962,46 +868,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: 700,
   },
-  busyDot: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: GREEN,
-  },
-  pinSlot: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: PIN_W,
-    alignItems: 'center',
-  },
-  // White like the station labels: a dark chip got lost on the red line
-  pin: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
-    boxShadow: '0 2px 8px rgba(20, 30, 50, 0.18)',
-  },
-  pinMine: {
-    backgroundColor: GREEN,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    boxShadow: `0 4px 12px rgba(31, 163, 91, 0.4)`,
-  },
-  pinText: {
-    color: INK,
-    fontSize: 11,
-    fontWeight: 700,
-    fontVariant: ['tabular-nums'],
-  },
-  pinTail: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 4,
-    borderRightWidth: 4,
-    borderTopWidth: 5,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: 'rgba(255, 255, 255, 0.96)',
+  tapOnly: {
+    opacity: 0,
   },
 });
