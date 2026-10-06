@@ -7,6 +7,7 @@
       "dependencies": {
         "@expo-google-fonts/inter-tight": "^0.4.2",
         "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+        "@expo-google-fonts/patrick-hand": "^0.4.1",
         "@expo-google-fonts/six-caps": "^0.4.1",
         "@expo/ui": "~57.0.21",
         "@lodev09/react-native-true-sheet": "^3.11.17",
@@ -236,6 +237,8 @@
     "@expo-google-fonts/jetbrains-mono": ["@expo-google-fonts/jetbrains-mono@0.4.1", "", {}, "sha512-CslACrtMOcRwoWXCO7OMEI+9w3fukWSoBtvNz46OqPoogEuuoY0tkDY1O8sFumk8t0pC6Cx0Xr95O0TOQhpkug=="],
 
     "@expo-google-fonts/material-symbols": ["@expo-google-fonts/material-symbols@0.4.48", "", {}, "sha512-aZztj44PyA/sj3TXSwwpLJwqMlTUJ49okbZJYURzEcuERxMQB0KbX7RrLBi8WJnuWz5HFOLlTRxORrJfNnUPNQ=="],
+
+    "@expo-google-fonts/patrick-hand": ["@expo-google-fonts/patrick-hand@0.4.1", "", {}, "sha512-Z/gioyynhzrsF6Od8E2QKpQooHnEzUmfen9ohVT6uaeWAmQy3pkl9r7AGdJx9ersDSLUciCNFV442leHIieJqQ=="],
 
     "@expo-google-fonts/six-caps": ["@expo-google-fonts/six-caps@0.4.1", "", {}, "sha512-+bs7LwlcSTjpLXPKLhxFtS+uXCgfPQYYEin89QE4s8AnqEYmhFWgfWLzulZK5I3ennVllvsSFE19pZYn1fnYqA=="],
 

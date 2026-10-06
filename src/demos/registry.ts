@@ -9,6 +9,8 @@ import MetroRiver from '@/demos/metro-river';
 import MetroLive from '@/demos/metro-live';
 import MetroOnboard from '@/demos/metro-onboard';
 import MetroTap from '@/demos/metro-tap';
+import PaperPlane from '@/demos/paper-plane';
+import PaperPlaneChat from '@/demos/paper-plane-chat';
 import SpringCard from '@/demos/spring-card';
 import Weather from '@/demos/weather';
 
@@ -30,6 +32,33 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'paper-plane-chat',
+    title: 'Paper Plane · Chat',
+    description:
+      'Send a message and its bubble lifts off as a card of paper, folds itself into a plane and loops out of the screen. The answer flies in and opens into its bubble.',
+    vi: {
+      title: 'Máy bay giấy · Chat',
+      description:
+        'Gửi tin nhắn, bong bóng hoá thành tấm giấy, tự gấp thành máy bay rồi lượn vòng bay khỏi màn hình. Tin trả lời bay vào, mở phẳng thành bong bóng.',
+    },
+    author: 'VG Team',
+    component: PaperPlaneChat,
+  },
+  {
+    id: 'paper-plane',
+    title: 'Paper Plane',
+    description:
+      'Write a note on a page from your school notebook, fold it into a paper plane and send it over the rice field at sunset. An answer flies back and opens in your hands.',
+    vi: {
+      title: 'Máy bay giấy',
+      description:
+        'Viết lên trang vở ô li, gấp thành máy bay giấy, phóng qua cánh đồng lúa lúc hoàng hôn. Thư trả lời bay về, mở ra trên tay bạn.',
+    },
+    author: 'VG Team',
+    component: PaperPlane,
+    hideClose: true,
+  },
   {
     id: 'weather',
     title: 'Trời · 3D Weather',

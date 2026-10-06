@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo-google-fonts/inter-tight": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/patrick-hand": "^0.4.1",
     "@expo-google-fonts/six-caps": "^0.4.1",
     "@expo/ui": "~57.0.21",
     "@lodev09/react-native-true-sheet": "^3.11.17",
