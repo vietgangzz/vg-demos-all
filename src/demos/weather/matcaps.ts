@@ -51,14 +51,21 @@ const halfway = (l: THREE.Vector3) =>
 const H_KEY = halfway(KEY);
 const H_FILL = halfway(FILL);
 
-/** Write the matcap for `spec` into `out` (SIZE × SIZE RGBA) */
-function paint(spec: MatcapSpec, out: Uint8Array) {
-  const base = rgb(spec.base);
-  const shade = rgb(spec.shade);
-  const rim = rgb(spec.rim);
-  const bounce = rgb(spec.bounce ?? spec.shade);
-  const rimStrength = spec.rimStrength ?? 0.6;
-  const pearl = spec.pearl ?? 0;
+/**
+ * What every matcap shares, per pixel: the sphere's lighting terms. Worked out once, so a repaint
+ * (a skin switch) is a few multiplies a pixel rather than a page of maths.
+ */
+const terms = (() => {
+  const n = SIZE * SIZE;
+  const t = {
+    wrap: new Float32Array(n),
+    under: new Float32Array(n),
+    edge: new Float32Array(n),
+    /** log of the half-vector dots, so a highlight of any gloss is one exp */
+    logKey: new Float32Array(n),
+    logFill: new Float32Array(n),
+    sheen: new Float32Array(n * 3),
+  };
   for (let j = 0; j < SIZE; j++) {
     for (let i = 0; i < SIZE; i++) {
       let x = ((i + 0.5) / SIZE) * 2 - 1;
@@ -69,31 +76,45 @@ function paint(spec: MatcapSpec, out: Uint8Array) {
         y *= 0.995 / r;
       }
       const z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
+      const k = j * SIZE + i;
       const key = x * KEY.x + y * KEY.y + z * KEY.z;
       // Half-Lambert: soft, wrapping light like a big softbox
-      const wrap = Math.pow(Math.max(0, key * 0.5 + 0.5), 1.6);
-      const c: RGB = [
-        shade[0] + (base[0] - shade[0]) * wrap,
-        shade[1] + (base[1] - shade[1]) * wrap,
-        shade[2] + (base[2] - shade[2]) * wrap,
-      ];
-      if (pearl > 0) {
-        const sheen = hue((0.58 + (1 - z) * 0.85 + y * 0.18 + x * 0.1) % 1);
-        const amount = pearl * (0.25 + 0.75 * (1 - z));
-        for (let k = 0; k < 3; k++) c[k] = c[k] * (1 - amount * 0.55) + sheen[k] * amount * 0.55 * (0.6 + wrap * 0.6);
-      }
-      const under = Math.max(0, -y) * (1 - z) * 0.5;
-      const fresnel = Math.pow(1 - z, 3) * rimStrength;
-      const sKey = Math.pow(Math.max(0, x * H_KEY.x + y * H_KEY.y + z * H_KEY.z), spec.gloss) * spec.spec;
-      const sFill =
-        Math.pow(Math.max(0, x * H_FILL.x + y * H_FILL.y + z * H_FILL.z), spec.gloss * 0.7) * spec.spec * 0.35;
-      const p = (j * SIZE + i) * 4;
-      for (let k = 0; k < 3; k++) {
-        const v = c[k] + bounce[k] * under + rim[k] * fresnel + sKey + sFill;
-        out[p + k] = Math.round(Math.min(1, Math.max(0, v)) * 255);
-      }
-      out[p + 3] = 255;
+      t.wrap[k] = Math.pow(Math.max(0, key * 0.5 + 0.5), 1.6);
+      t.under[k] = Math.max(0, -y) * (1 - z) * 0.5;
+      t.edge[k] = 1 - z;
+      t.logKey[k] = Math.log(Math.max(1e-6, x * H_KEY.x + y * H_KEY.y + z * H_KEY.z));
+      t.logFill[k] = Math.log(Math.max(1e-6, x * H_FILL.x + y * H_FILL.y + z * H_FILL.z));
+      const sheen = hue((0.58 + (1 - z) * 0.85 + y * 0.18 + x * 0.1) % 1);
+      t.sheen.set(sheen, k * 3);
     }
+  }
+  return t;
+})();
+
+/** Write the matcap for `spec` into `out` (SIZE × SIZE RGBA) */
+function paint(spec: MatcapSpec, out: Uint8Array) {
+  const base = rgb(spec.base);
+  const shade = rgb(spec.shade);
+  const rim = rgb(spec.rim);
+  const bounce = rgb(spec.bounce ?? spec.shade);
+  const rimStrength = spec.rimStrength ?? 0.6;
+  const pearl = spec.pearl ?? 0;
+  const { wrap, under, edge, logKey, logFill, sheen } = terms;
+  for (let k = 0; k < SIZE * SIZE; k++) {
+    const w = wrap[k];
+    const e = edge[k];
+    const fresnel = e * e * e * rimStrength;
+    const spec1 =
+      Math.exp(logKey[k] * spec.gloss) * spec.spec + Math.exp(logFill[k] * spec.gloss * 0.7) * spec.spec * 0.35;
+    const amount = pearl * (0.25 + 0.75 * e);
+    const p = k * 4;
+    for (let c = 0; c < 3; c++) {
+      let v = shade[c] + (base[c] - shade[c]) * w;
+      if (pearl > 0) v = v * (1 - amount * 0.55) + sheen[k * 3 + c] * amount * 0.55 * (0.6 + w * 0.6);
+      v += bounce[c] * under[k] + rim[c] * fresnel + spec1;
+      out[p + c] = v <= 0 ? 0 : v >= 1 ? 255 : (v * 255 + 0.5) | 0;
+    }
+    out[p + 3] = 255;
   }
 }
 
@@ -113,54 +134,6 @@ export function repaint(texture: THREE.DataTexture, spec: MatcapSpec) {
   paint(spec, texture.image.data as Uint8Array);
   texture.needsUpdate = true;
 }
-
-/**
- * Skins for the numerals and gadgets, after Vietnamese craft materials: porcelain, lacquer,
- * jade and mother-of-pearl inlay.
- */
-export type SkinId = 'su' | 'sonmai' | 'ngoc' | 'xacu';
-
-export const SKINS: Record<SkinId, MatcapSpec & { swatch: string }> = {
-  su: {
-    swatch: '#F3F1EC',
-    base: '#F7F5F0',
-    shade: '#9BA7BA',
-    rim: '#FFFFFF',
-    bounce: '#B9CBE6',
-    spec: 0.85,
-    gloss: 70,
-  },
-  sonmai: {
-    swatch: '#1B1416',
-    base: '#2A1E20',
-    shade: '#070405',
-    rim: '#D9A441',
-    rimStrength: 0.9,
-    bounce: '#8C2A1A',
-    spec: 1,
-    gloss: 110,
-  },
-  ngoc: {
-    swatch: '#5DBE98',
-    base: '#6FCBA6',
-    shade: '#1D5A47',
-    rim: '#D8FFF0',
-    bounce: '#2D8C6A',
-    spec: 0.9,
-    gloss: 80,
-  },
-  xacu: {
-    swatch: '#E6E1F0',
-    base: '#EEEAF5',
-    shade: '#8A86A6',
-    rim: '#FFFFFF',
-    spec: 0.9,
-    gloss: 90,
-    pearl: 0.9,
-  },
-};
-
-export const SKIN_ORDER: SkinId[] = ['su', 'sonmai', 'ngoc', 'xacu'];
 
 /** Fixed materials of the sky itself */
 export const SKY_MATCAPS = {

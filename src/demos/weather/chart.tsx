@@ -290,8 +290,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   label: {
-    fontSize: 10,
-    opacity: 0.55,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    opacity: 0.85,
   },
   mark: {
     position: 'absolute',

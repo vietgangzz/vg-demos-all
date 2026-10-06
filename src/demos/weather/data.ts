@@ -7,12 +7,12 @@
 export type City = { id: string; name: string; lat: number; lon: number };
 
 export const CITIES: City[] = [
-  { id: 'hcm', name: 'TP. Hồ Chí Minh', lat: 10.7769, lon: 106.7009 },
-  { id: 'hn', name: 'Hà Nội', lat: 21.0285, lon: 105.8542 },
-  { id: 'dn', name: 'Đà Nẵng', lat: 16.0544, lon: 108.2022 },
-  { id: 'dl', name: 'Đà Lạt', lat: 11.9404, lon: 108.4583 },
+  { id: 'hcm', name: 'Ho Chi Minh City', lat: 10.7769, lon: 106.7009 },
+  { id: 'hn', name: 'Hanoi', lat: 21.0285, lon: 105.8542 },
+  { id: 'dn', name: 'Da Nang', lat: 16.0544, lon: 108.2022 },
+  { id: 'dl', name: 'Da Lat', lat: 11.9404, lon: 108.4583 },
   { id: 'sp', name: 'Sa Pa', lat: 22.3364, lon: 103.8438 },
-  { id: 'vt', name: 'Vũng Tàu', lat: 10.346, lon: 107.0843 },
+  { id: 'vt', name: 'Vung Tau', lat: 10.346, lon: 107.0843 },
 ];
 
 /** One step of forecast: an hour, or (in the week view) a whole day */

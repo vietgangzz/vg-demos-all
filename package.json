@@ -3,9 +3,9 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
-    "@expo-google-fonts/be-vietnam-pro": "^0.4.1",
+    "@expo-google-fonts/inter-tight": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
-    "@expo-google-fonts/unbounded": "^0.4.1",
+    "@expo-google-fonts/six-caps": "^0.4.1",
     "@expo/ui": "~57.0.21",
     "@lodev09/react-native-true-sheet": "^3.11.17",
     "@typegpu/gl": "^0.12.5",

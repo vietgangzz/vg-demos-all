@@ -16,7 +16,6 @@ const STRINGS = {
     credit: 'Weather data by Open-Meteo',
     tour: 'Tour',
     live: 'Live',
-    skins: { su: 'Porcelain', sonmai: 'Lacquer', ngoc: 'Jade', xacu: 'Pearl' },
     env: {
       clear: 'Clear',
       partly: 'Partly cloudy',
@@ -122,7 +121,6 @@ const STRINGS = {
     credit: 'Dữ liệu thời tiết: Open-Meteo',
     tour: 'Tour',
     live: 'Trực tiếp',
-    skins: { su: 'Sứ', sonmai: 'Sơn mài', ngoc: 'Ngọc', xacu: 'Xà cừ' },
     env: {
       clear: 'Trời quang',
       partly: 'Mây rải rác',

@@ -1,78 +1,87 @@
-import { Image, PixelRatio } from 'react-native';
-import { Skia, type SkTypeface, type SkTypefaceFontProvider } from 'react-native-skia';
+import { Image } from 'react-native';
+import { PathVerb, Skia, type SkTypeface } from 'react-native-skia';
 import * as THREE from 'three/webgpu';
 
 /**
- * Page titles drawn into textures with Skia in Unbounded Black, so they can stand on the ring
- * with their pages: they swing in and out with the object, and the pages behind the ring show
- * their titles from the back, mirrored and hazy, as in the original.
+ * Page titles as solid 3D type, as in the original: Inter Tight Black outlines from Skia,
+ * extruded by three.js so the letters have dark sides. They stand on the ring with their pages,
+ * swinging in and out with the object, and the pages behind show them from the back, mirrored
+ * and hazy.
  */
 
-const SCALE = Math.min(3, Math.max(2, PixelRatio.get()));
-const SIZE = 36;
-const FAMILY = 'Unbounded';
+/** Load a bundled font file (a `require`d asset) as a Skia typeface */
+export async function loadTypeface(asset: number) {
+  try {
+    const uri = Image.resolveAssetSource(asset).uri;
+    return Skia.Typeface.MakeFreeTypeFaceFromData(await Skia.Data.fromURI(uri));
+  } catch {
+    return null;
+  }
+}
 
 let face: Promise<SkTypeface | null> | null = null;
-let provider: Promise<SkTypefaceFontProvider | null> | null = null;
 
-/** Unbounded Black, loaded once from the bundled font file */
+/** Inter Tight Black, loaded once */
 export function displayTypeface() {
-  face ??= (async () => {
-    try {
-      const uri = Image.resolveAssetSource(require('@expo-google-fonts/unbounded/900Black/Unbounded_900Black.ttf')).uri;
-      return Skia.Typeface.MakeFreeTypeFaceFromData(await Skia.Data.fromURI(uri));
-    } catch {
-      return null;
-    }
-  })();
+  face ??= loadTypeface(require('@expo-google-fonts/inter-tight/900Black/InterTight_900Black.ttf'));
   return face;
 }
 
-function fontProvider() {
-  provider ??= displayTypeface().then((typeface) => {
-    if (!typeface) return null;
-    const p = Skia.TypefaceFontProvider.Make();
-    p.registerFont(typeface, FAMILY);
-    return p;
-  });
-  return provider;
+let numerals: Promise<SkTypeface | null> | null = null;
+
+/** Six Caps, ultra-condensed: the numerals are swollen from it */
+export function numeralTypeface() {
+  numerals ??= loadTypeface(require('@expo-google-fonts/six-caps/400Regular/SixCaps_400Regular.ttf'));
+  return numerals;
 }
 
-export type TitleTexture = { texture: THREE.DataTexture; width: number; height: number };
+/** Letters this tall (cap height) in geometry units: the scene scales them to points */
+export const TITLE_CAP = 1;
+/** Depth of the extrusion, as a fraction of the cap height */
+const DEPTH = 0.22;
 
-/** White title text on transparent, `width` × `height` in points (tint it with the material) */
-export async function titleTexture(text: string): Promise<TitleTexture | null> {
-  const fonts = await fontProvider();
-  const builder = fonts ? Skia.ParagraphBuilder.Make({}, fonts) : Skia.ParagraphBuilder.Make();
-  const paragraph = builder
-    .pushStyle({
-      color: Skia.Color('#FFFFFF'),
-      fontSize: SIZE * SCALE,
-      fontFamilies: fonts ? [FAMILY] : undefined,
-      fontStyle: { weight: 900 },
-      letterSpacing: -1.5 * SCALE,
-    })
-    .addText(text || ' ')
-    .build();
-  paragraph.layout(4000);
-  const px = Math.max(2, Math.ceil(paragraph.getLongestLine() + 8 * SCALE));
-  const py = Math.max(2, Math.ceil(paragraph.getHeight() + 4 * SCALE));
-  const surface = Skia.Surface.Make(px, py);
-  if (!surface) return null;
-  const canvas = surface.getCanvas();
-  canvas.clear(Skia.Color('transparent'));
-  paragraph.paint(canvas, 4 * SCALE, 2 * SCALE);
-  surface.flush();
-  const read = surface.makeImageSnapshot().readPixels();
-  if (!(read instanceof Uint8Array)) return null;
-  // Skia rows run top-down, texture rows bottom-up
-  const data = new Uint8Array(px * py * 4);
-  const row = px * 4;
-  for (let y = 0; y < py; y++) data.set(read.subarray(y * row, y * row + row), (py - 1 - y) * row);
-  const texture = new THREE.DataTexture(data, px, py, THREE.RGBAFormat);
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-  texture.needsUpdate = true;
-  return { texture, width: px / SCALE, height: py / SCALE };
+export type TitleMesh = { geometry: THREE.BufferGeometry; width: number };
+
+/**
+ * Solid type for `text`, centred on the cap height, its front face at z = 0. Groups: 0 is the
+ * faces, 1 the sides (give it two materials).
+ */
+export async function titleGeometry(text: string): Promise<TitleMesh | null> {
+  const typeface = await displayTypeface();
+  if (!typeface || !text) return null;
+  const font = Skia.Font(typeface, 100);
+  const cap = Skia.Path.MakeFromText('H', 0, 0, font)?.computeTightBounds();
+  if (!cap || cap.height <= 0) return null;
+  const s = TITLE_CAP / cap.height;
+  // Set tighter than the font's own spacing, like the original's display type
+  const tracking = -3.2;
+  const shape = new THREE.ShapePath();
+  let x = 0;
+  for (const ch of [...text]) {
+    const path = Skia.Path.MakeFromText(ch, x, 0, font);
+    x += font.getTextWidth(ch) + tracking;
+    if (!path) continue;
+    for (const [verb, ...p] of path.toCmds()) {
+      if (verb === PathVerb.Move) shape.moveTo(p[0] * s, -p[1] * s);
+      else if (verb === PathVerb.Line) shape.lineTo(p[0] * s, -p[1] * s);
+      else if (verb === PathVerb.Quad || verb === PathVerb.Conic)
+        shape.quadraticCurveTo(p[0] * s, -p[1] * s, p[2] * s, -p[3] * s);
+      else if (verb === PathVerb.Cubic)
+        shape.bezierCurveTo(p[0] * s, -p[1] * s, p[2] * s, -p[3] * s, p[4] * s, -p[5] * s);
+    }
+  }
+  const geometry = new THREE.ExtrudeGeometry(shape.toShapes(), {
+    depth: DEPTH,
+    bevelEnabled: true,
+    bevelThickness: 0.02,
+    bevelSize: 0.012,
+    bevelSegments: 2,
+    curveSegments: 8,
+  });
+  geometry.computeBoundingBox();
+  const b = geometry.boundingBox!;
+  const width = b.max.x - b.min.x;
+  // Centred across, the cap height centred on y = 0, the front face at z = 0
+  geometry.translate(-(b.min.x + width / 2), -TITLE_CAP / 2, -DEPTH - 0.02);
+  return { geometry, width };
 }

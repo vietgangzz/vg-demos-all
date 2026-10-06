@@ -1,6 +1,7 @@
+import type { TrueSheet } from '@lodev09/react-native-true-sheet';
 import { router } from 'expo-router';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
@@ -46,8 +47,9 @@ import {
   type Hour,
 } from './data';
 import { FONT, NATIVE_FONT, useWeatherFonts } from './fonts';
-import { conditionOf, tr, useLang, type Lang } from './i18n';
-import { SKIN_ORDER, SKINS, type SkinId } from './matcaps';
+import { conditionOf, tr, type Lang } from './i18n';
+import { SettingsSheet, type Units } from './settings';
+import { themeBackdrop, themeById, type ThemeId } from './themes';
 import { createWeatherScene, PAGE_COUNT, pageAt, PAGES, type PageId, type WeatherScene } from './scene';
 
 const GLASS = isLiquidGlassAvailable();
@@ -92,7 +94,8 @@ const weekday = (lang: Lang, time: string) => tr(lang).weekdays[new Date(`${time
 export default function Weather() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const lang = useLang();
+  // The demo speaks English throughout
+  const lang: Lang = 'en';
   const t = tr(lang);
   const canvasRef = useRef<CanvasRef>(null);
   const [scene, setScene] = useState<WeatherScene | null>(null);
@@ -106,10 +109,18 @@ export default function Weather() {
   const [page, setPage] = useState(0);
   const [override, setOverride] = useState<EnvKind | null>(null);
   const [touring, setTouring] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [weekOpen, setWeekOpen] = useState(false);
   const [hint, setHint] = useState(true);
-  const [skin, setSkin] = useState<SkinId>('su');
+  // The look, kept across visits for this session
+  const [theme, setThemeState] = useState<ThemeId>(saved.theme);
+  const [units, setUnitsState] = useState<Units>(saved.units);
+  const [minimal, setMinimalState] = useState(saved.minimal);
+  const [glow, setGlowState] = useState(saved.glow);
+  const setTheme = (v: ThemeId) => setThemeState((saved.theme = v));
+  const setUnits = (v: Units) => setUnitsState((saved.units = v));
+  const setMinimal = (v: boolean) => setMinimalState((saved.minimal = v));
+  const setGlow = (v: boolean) => setGlowState((saved.glow = v));
+  const sheet = useRef<TrueSheet>(null);
   const fontsLoaded = useWeatherFonts();
   const [mode, setMode] = useState<'main' | 'ring'>('main');
   const pageX = useSharedValue(0);
@@ -188,8 +199,12 @@ export default function Weather() {
   }, [scene, t]);
 
   useEffect(() => {
-    scene?.setSkin(skin);
-  }, [scene, skin]);
+    scene?.setTheme(theme);
+  }, [scene, theme]);
+
+  useEffect(() => {
+    scene?.setBloom(glow);
+  }, [scene, glow]);
 
   // The live forecast replaces the city's sample when it lands
   useEffect(() => {
@@ -244,13 +259,21 @@ export default function Weather() {
   const kind: EnvKind = override ?? kindOf(hour);
   const sky: Env = override ? presetEnv(override) : envOf(hour);
   const cloudSky: Env = { ...sky, cloud: Math.max(sky.cloud, 0.35), sun: 0 };
-  const palette = paletteOf(sky);
+  // A skin with its own backdrop sets the screen's colours; otherwise the sky does
+  const palette = themeBackdrop(themeById(theme), sky.night) ?? paletteOf(sky);
+  const imperial = units === 'imperial';
+  const deg = (c: number) => Math.round(imperial ? (c * 9) / 5 + 32 : c);
+  const speed = (kmh: number) => `${Math.round(imperial ? kmh * 0.621 : kmh)} ${imperial ? 'mph' : 'km/h'}`;
   const ink = palette.dark ? '#FFFFFF' : '#14181F';
   const soft = palette.dark ? 'rgba(255,255,255,0.6)' : 'rgba(20,24,31,0.5)';
   const paper = toCss(palette.bottom);
   const band = aqiBand(hour.aqi);
-  const sunFrac = week ? 0.5 : sunFraction(forecast, hour.time);
+  // A preset sky keeps the hour's sun (scrub it to a sunset), unless it turns day into night or
+  // back: then it shows its canonical hour, midday or the middle of the night
+  const canonical = week || (override !== null && hour.isDay !== live.isDay);
+  const sunFrac = canonical ? 0.5 : sunFraction(forecast, hour.time);
   const nightFrac = (() => {
+    if (canonical) return 0.5;
     const set = minutesOf(forecast.sunset);
     const rise = minutesOf(forecast.sunrise);
     const night = 1440 - (set - rise);
@@ -258,7 +281,7 @@ export default function Weather() {
   })();
   const moonDays = forecast.days.map((d) => moonAt(`${d.time.slice(0, 10)}T12:00:00`));
   const moon = moonDays[Math.min(moonDay, moonDays.length - 1)] ?? moonAt(new Date());
-  const temp = `${Math.round(hour.temp)}°`;
+  const temp = `${deg(hour.temp)}°`;
 
   useEffect(() => {
     scene?.setInput({
@@ -266,8 +289,10 @@ export default function Weather() {
       cloudSky,
       rain: Math.max(sky.rain, (hour.precipProb / 100) * 0.9),
       digits: { main: temp, temp },
+      tempC: hour.temp,
       windKmh: hour.wind,
       windDir: hour.windDir,
+      aqi: hour.aqi,
       sunFrac: hour.isDay || week ? sunFrac : nightFrac,
       isDay: hour.isDay || week,
       moonPhase: moon.phase,
@@ -452,14 +477,14 @@ export default function Weather() {
     temp: {
       head: [c.temperature, temp],
       rows: [
-        [c.high, `${Math.round(week ? hour.high : forecast.high)}°`],
-        [c.low, `${Math.round(week ? hour.low : forecast.low)}°`],
-        [c.feels, `${Math.round(hour.feels)}°`],
+        [c.high, `${deg(week ? hour.high : forecast.high)}°`],
+        [c.low, `${deg(week ? hour.low : forecast.low)}°`],
+        [c.feels, `${deg(hour.feels)}°`],
         [c.humidity, `${Math.round(hour.humidity)}%`],
-        [c.dewPoint, `${Math.round(hour.dewPoint)}°`],
+        [c.dewPoint, `${deg(hour.dewPoint)}°`],
       ],
       chart: chart(
-        steps.map((s) => s.temp),
+        steps.map((s) => deg(s.temp)),
         '#FF8A3D',
         {}
       ),
@@ -503,9 +528,9 @@ export default function Weather() {
     },
     // Wind and air quality together, as the original's Air page
     air: {
-      head: [c.wind, `${Math.round(hour.wind)} km/h`],
+      head: [c.wind, speed(hour.wind)],
       rows: [
-        [c.gust, `${Math.round(hour.gust)} km/h`],
+        [c.gust, speed(hour.gust)],
         [c.direction, `${compass} · ${Math.round(hour.windDir)}°`],
         [c.pressure, `${Math.round(hour.pressure)} hPa`],
         [c.aqi, `${Math.round(hour.aqi)} · ${t.aqiBands[band]}`],
@@ -548,14 +573,23 @@ export default function Weather() {
   const highAt = temps.indexOf(Math.max(...temps));
   const marks =
     lowAt === highAt
-      ? [{ at: lowAt, text: `${Math.round(temps[lowAt])}` }]
+      ? [{ at: lowAt, text: `${deg(temps[lowAt])}` }]
       : [
-          { at: lowAt, text: `${Math.round(temps[lowAt])}` },
-          { at: highAt, text: `${Math.round(temps[highAt])}` },
+          { at: lowAt, text: `${deg(temps[lowAt])}` },
+          { at: highAt, text: `${deg(temps[highAt])}` },
         ];
   const barLabels = forecast.hours
     .filter((_, i) => i % 3 === 0)
     .map((h, i) => (i === 0 ? t.nowLabel : String(Number(h.time.slice(11, 13)))));
+
+  /** Show the next city's sample at once; the live forecast follows */
+  const nextCity = () => {
+    const next = (cityIndex + 1) % CITIES.length;
+    setCityIndex(next);
+    setForecast(sampleForecast(CITIES[next]));
+    setHourIndex(0);
+    setDayIndex(0);
+  };
 
   const pickEnv = (k: EnvKind | null) => {
     Presets.System.selection();
@@ -586,9 +620,12 @@ export default function Weather() {
                   <Text style={[styles.condition, { top: conditionTop, color: ink }]}>
                     {conditionOf(lang, kind, hour)}
                   </Text>
-                  <View style={[styles.bar, { top: conditionTop + 50 }]}>
+                  {/* Minimalist mode leaves the sky, the numerals and the condition alone */}
+                  <View
+                    style={[styles.bar, { top: conditionTop + 50, opacity: minimal ? 0 : 1 }]}
+                    pointerEvents={minimal ? 'none' : 'auto'}>
                     {weekOpen ? (
-                      <WeekRow forecast={forecast} lang={lang} ink={ink} onPress={() => setWeekOpen(false)} />
+                      <WeekRow forecast={forecast} lang={lang} ink={ink} deg={deg} onPress={() => setWeekOpen(false)} />
                     ) : (
                       <HourBar
                         colors={forecast.hours.map(barColor)}
@@ -610,7 +647,7 @@ export default function Weather() {
                       />
                     )}
                   </View>
-                  <View style={[styles.credit, { bottom: Math.max(10, insets.bottom - 6) }]}>
+                  <View style={[styles.credit, { bottom: Math.max(10, insets.bottom - 6), opacity: minimal ? 0 : 1 }]}>
                     <Text style={[styles.creditSmall, { color: soft }]}>{t.forecastBy}</Text>
                     <Text style={[styles.creditName, { color: soft }]}>
                       {forecast.source === 'live' ? 'Open-Meteo' : t.sample}
@@ -621,7 +658,7 @@ export default function Weather() {
 
               {/* The ring's text: titles stand on the ring in 3D; the label and the card stay put */}
               <Layer view={view} show="ring" active={mode === 'ring'}>
-                <Text style={[styles.stepLabel, { top: insets.top + 60, color: soft, opacity: pickerOpen ? 0 : 1 }]}>
+                <Text style={[styles.stepLabel, { top: insets.top + 60, color: soft }]}>
                   {PAGES[page] === 'moon' ? t.todayLabel : stepLabel}
                 </Text>
                 {PAGES.map((id, i) => (
@@ -671,12 +708,7 @@ export default function Weather() {
               style={styles.city}
               onPress={() => {
                 Presets.System.selection();
-                // Show the next city's sample at once; the live forecast follows
-                const next = (cityIndex + 1) % CITIES.length;
-                setCityIndex(next);
-                setForecast(sampleForecast(CITIES[next]));
-                setHourIndex(0);
-                setDayIndex(0);
+                nextCity();
               }}>
               <SymbolView name="location.fill" size={14} tintColor={ink} />
               <Text style={[styles.cityText, { color: ink }]}>{forecast.city.name}</Text>
@@ -684,71 +716,38 @@ export default function Weather() {
             <Chip
               dark={palette.dark}
               label="Settings"
-              active={pickerOpen}
               onPress={() => {
                 Presets.System.selection();
-                setPickerOpen((o) => !o);
+                sheet.current?.present();
               }}>
               <SymbolView name="slider.horizontal.3" size={16} weight="semibold" tintColor={ink} />
             </Chip>
           </View>
 
-          {pickerOpen ? (
-            <Animated.View
-              entering={FadeIn.duration(180)}
-              exiting={FadeOut.duration(140)}
-              style={[styles.picker, { top: insets.top + 56 }]}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>
-                <Pill
-                  dark={palette.dark}
-                  ink={ink}
-                  active={touring}
-                  label={`▶ ${t.tour}`}
-                  onPress={() => {
-                    Presets.System.impactMedium();
-                    if (!touring) setOverride(TOUR[0]);
-                    setTouring(!touring);
-                    backToMain();
-                  }}
-                />
-                <Pill
-                  dark={palette.dark}
-                  ink={ink}
-                  active={!override && !touring}
-                  label={t.live}
-                  onPress={() => pickEnv(null)}
-                />
-                {TOUR.map((k) => (
-                  <Pill
-                    key={k}
-                    dark={palette.dark}
-                    ink={ink}
-                    active={override === k && !touring}
-                    label={t.env[k]}
-                    onPress={() => pickEnv(k)}
-                  />
-                ))}
-              </ScrollView>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>
-                {SKIN_ORDER.map((s) => (
-                  <Pressable
-                    key={s}
-                    onPress={() => {
-                      Presets.System.selection();
-                      setSkin(s);
-                    }}
-                    style={[
-                      styles.skin,
-                      { borderColor: skin === s ? ink : 'transparent' },
-                      { backgroundColor: palette.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.72)' },
-                    ]}>
-                    <View style={[styles.swatch, { backgroundColor: SKINS[s].swatch }]} />
-                    <Text style={[styles.pillText, { color: ink }]}>{t.skins[s]}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </Animated.View>
-          ) : null}
+          <SettingsSheet
+            ref={sheet}
+            theme={theme}
+            onTheme={setTheme}
+            city={forecast.city.name}
+            onCity={nextCity}
+            units={units}
+            onUnits={setUnits}
+            minimal={minimal}
+            onMinimal={setMinimal}
+            glow={glow}
+            onGlow={setGlow}
+            env={override}
+            envs={TOUR}
+            envLabel={(k) => t.env[k]}
+            touring={touring}
+            onEnv={pickEnv}
+            onTour={() => {
+              Presets.System.impactMedium();
+              if (!touring) setOverride(TOUR[0]);
+              setTouring(!touring);
+              backToMain();
+            }}
+          />
         </>
       ) : null}
 
@@ -848,13 +847,13 @@ function DetailCard({
       <View style={[styles.headRow, { backgroundColor: ink }]}>
         <Text style={[styles.headLabel, { color: paper }]}>{head[0]}</Text>
         {/* Native SwiftUI numeric transitions: digits roll as you scrub */}
-        <NumericText value={head[1]} family={NATIVE_FONT.monoBold} fontSize={13} color={paper} letterSpacing={-0.3} />
+        <NumericText value={head[1]} family={NATIVE_FONT.mono} fontSize={12.5} color={paper} letterSpacing={0.4} />
       </View>
       {rows.map(([label, value]) => (
         <View key={label} style={styles.dataRow}>
-          <Text style={[styles.rowLabel, { color: soft }]}>{label}</Text>
-          <View style={[styles.leader, { borderColor: soft }]} />
-          <NumericText value={value} family={NATIVE_FONT.monoBold} fontSize={12} color={ink} letterSpacing={-0.3} />
+          <Text style={[styles.rowLabel, { color: ink }]}>{label}</Text>
+          <View style={[styles.leader, { backgroundColor: ink }]} />
+          <NumericText value={value} family={NATIVE_FONT.mono} fontSize={12.5} color={ink} letterSpacing={0.4} />
         </View>
       ))}
     </View>
@@ -891,11 +890,13 @@ function WeekRow({
   forecast,
   lang,
   ink,
+  deg,
   onPress,
 }: {
   forecast: Forecast;
   lang: Lang;
   ink: string;
+  deg: (c: number) => number;
   onPress: () => void;
 }) {
   const t = tr(lang);
@@ -905,8 +906,8 @@ function WeekRow({
         <View key={d.time} style={styles.weekDay}>
           <Text style={[styles.weekName, { color: ink }]}>{i === 0 ? t.todayLabel : weekday(lang, d.time)}</Text>
           <SymbolView name={ICONS[kindOf(d)]} size={20} tintColor={ink} type="hierarchical" />
-          <Text style={[styles.weekHigh, { color: ink }]}>{Math.round(d.high)}</Text>
-          <Text style={[styles.weekLow, { color: ink }]}>{Math.round(d.low)}</Text>
+          <Text style={[styles.weekHigh, { color: ink }]}>{deg(d.high)}</Text>
+          <Text style={[styles.weekLow, { color: ink }]}>{deg(d.low)}</Text>
         </View>
       ))}
     </Pressable>
@@ -952,58 +953,39 @@ function Chip({
   );
 }
 
-function Pill({
-  dark,
-  ink,
-  active,
-  label,
-  onPress,
-}: {
-  dark: boolean;
-  ink: string;
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  const on = dark ? '#FFFFFF' : '#14181F';
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.pill,
-        active
-          ? { backgroundColor: on }
-          : { backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.72)' },
-      ]}>
-      <Text style={[styles.pillText, { color: active ? (dark ? '#14181F' : '#FFFFFF') : ink }]}>{label}</Text>
-    </Pressable>
-  );
-}
+/** Settings kept for the session, so leaving the demo and coming back keeps the look */
+const saved: { theme: ThemeId; units: Units; minimal: boolean; glow: boolean } = {
+  theme: 'sky',
+  units: 'metric',
+  minimal: false,
+  glow: true,
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
   },
+  // White with a tight dark edge, laid over the numerals
   hint: {
     position: 'absolute',
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontFamily: FONT.display,
-    fontSize: 17,
-    letterSpacing: -0.4,
+    fontFamily: FONT.bodyBold,
+    fontSize: 19,
+    letterSpacing: -0.6,
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowRadius: 8,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowRadius: 2.5,
   },
   condition: {
     position: 'absolute',
     left: 24,
     right: 24,
     textAlign: 'center',
-    fontFamily: FONT.display,
-    fontSize: 28,
+    fontFamily: FONT.bodyBold,
+    fontSize: 31,
     letterSpacing: -1.1,
   },
   bar: {
@@ -1020,13 +1002,13 @@ const styles = StyleSheet.create({
   },
   creditSmall: {
     fontFamily: FONT.mono,
-    fontSize: 8,
-    letterSpacing: 1.2,
+    fontSize: 9,
+    letterSpacing: 1.8,
   },
   creditName: {
     fontFamily: FONT.monoBold,
     fontSize: 10,
-    letterSpacing: 0.2,
+    letterSpacing: 1.2,
   },
   titleBlock: {
     position: 'absolute',
@@ -1039,9 +1021,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontFamily: FONT.monoBold,
-    fontSize: 10,
-    letterSpacing: 2,
+    fontFamily: FONT.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
   },
   title: {
     fontFamily: FONT.display,
@@ -1049,42 +1031,42 @@ const styles = StyleSheet.create({
     letterSpacing: -1.5,
     marginTop: 2,
   },
+  // The original's card: narrow, a pill for the headline row, light mono type on hairlines
   card: {
     position: 'absolute',
-    left: 36,
-    right: 36,
+    left: '17%',
+    right: '17%',
   },
   headRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     height: 22,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    borderCurve: 'continuous',
+    paddingHorizontal: 10,
+    borderRadius: 11,
   },
   headLabel: {
-    fontFamily: FONT.monoBold,
-    fontSize: 11,
-    letterSpacing: 0.4,
+    fontFamily: FONT.mono,
+    fontSize: 12.5,
+    letterSpacing: 0.9,
   },
   dataRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 22,
-    paddingHorizontal: 8,
+    height: 21,
+    paddingHorizontal: 10,
   },
   rowLabel: {
     fontFamily: FONT.mono,
-    fontSize: 11,
-    letterSpacing: 0.4,
+    fontSize: 12.5,
+    letterSpacing: 0.9,
   },
   leader: {
     flex: 1,
     marginHorizontal: 8,
-    borderBottomWidth: 1,
-    borderStyle: 'dotted',
-    opacity: 0.45,
+    marginTop: 3,
+    height: StyleSheet.hairlineWidth * 2,
+    opacity: 0.22,
   },
   chartWrap: {
     marginTop: 10,
@@ -1097,9 +1079,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   rangeText: {
-    fontFamily: FONT.monoBold,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontFamily: FONT.mono,
+    fontSize: 12.5,
+    letterSpacing: 1.2,
   },
   switch: {
     width: 34,
@@ -1148,9 +1130,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cityText: {
-    fontFamily: FONT.display,
+    fontFamily: FONT.bodyBold,
     fontSize: 16,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   chip: {
     height: 40,
@@ -1166,43 +1148,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-  },
-  picker: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    gap: 8,
-  },
-  pickerRow: {
-    paddingHorizontal: 14,
-    gap: 8,
-  },
-  pill: {
-    height: 32,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    justifyContent: 'center',
-  },
-  pillText: {
-    fontFamily: FONT.bodyBold,
-    fontSize: 13,
-    letterSpacing: -0.1,
-  },
-  skin: {
-    height: 34,
-    paddingHorizontal: 10,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  swatch: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.25)',
   },
   loading: {
     alignItems: 'center',

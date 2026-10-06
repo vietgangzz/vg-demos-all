@@ -1,21 +1,20 @@
-import { BeVietnamPro_600SemiBold, BeVietnamPro_800ExtraBold } from '@expo-google-fonts/be-vietnam-pro';
-import { JetBrainsMono_600SemiBold, JetBrainsMono_800ExtraBold } from '@expo-google-fonts/jetbrains-mono';
-import { Unbounded_700Bold, Unbounded_900Black } from '@expo-google-fonts/unbounded';
+import { InterTight_700Bold, InterTight_800ExtraBold, InterTight_900Black } from '@expo-google-fonts/inter-tight';
+import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { useFonts } from 'expo-font';
 
 /**
- * Three faces, all with full Vietnamese diacritics, set heavy: Unbounded (wide and round, kin to
- * the puffy numerals) for headlines, Be Vietnam Pro (drawn for Vietnamese) for text, JetBrains
- * Mono for the numbers in the cards. Custom faces carry their own weight: no fontWeight alongside
- * them.
+ * Two faces, after the original's: a heavy, tightly set grotesque (Inter Tight) for headlines
+ * and text, and a light monospace (JetBrains Mono) for the labels and numbers in the cards. Both
+ * carry full Vietnamese diacritics. Custom faces carry their own weight: no fontWeight
+ * alongside them.
  */
 export const FONT = {
-  display: 'Unbounded_900Black',
-  displaySemi: 'Unbounded_700Bold',
-  body: 'BeVietnamPro_600SemiBold',
-  bodyBold: 'BeVietnamPro_800ExtraBold',
-  mono: 'JetBrainsMono_600SemiBold',
-  monoBold: 'JetBrainsMono_800ExtraBold',
+  display: 'InterTight_900Black',
+  displaySemi: 'InterTight_800ExtraBold',
+  body: 'InterTight_700Bold',
+  bodyBold: 'InterTight_800ExtraBold',
+  mono: 'JetBrainsMono_400Regular',
+  monoBold: 'JetBrainsMono_500Medium',
 };
 
 /**
@@ -23,18 +22,17 @@ export const FONT = {
  * the name inside the file, not by the alias expo-font registered them under.
  */
 export const NATIVE_FONT = {
-  mono: 'JetBrainsMono-SemiBold',
-  monoBold: 'JetBrainsMono-ExtraBold',
+  mono: 'JetBrainsMono-Regular',
+  monoBold: 'JetBrainsMono-Medium',
 };
 
 export function useWeatherFonts() {
   const [loaded] = useFonts({
-    Unbounded_900Black,
-    Unbounded_700Bold,
-    BeVietnamPro_600SemiBold,
-    BeVietnamPro_800ExtraBold,
-    JetBrainsMono_600SemiBold,
-    JetBrainsMono_800ExtraBold,
+    InterTight_700Bold,
+    InterTight_800ExtraBold,
+    InterTight_900Black,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
   });
   return loaded;
 }
