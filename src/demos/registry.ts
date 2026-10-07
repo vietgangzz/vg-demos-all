@@ -12,6 +12,7 @@ import MetroTap from '@/demos/metro-tap';
 import PaperPlane from '@/demos/paper-plane';
 import PaperPlaneChat from '@/demos/paper-plane-chat';
 import SpringCard from '@/demos/spring-card';
+import StickerCart from '@/demos/sticker-cart';
 import Weather from '@/demos/weather';
 
 export type Demo = {
@@ -32,6 +33,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'sticker-cart',
+    title: 'Sticker Cart',
+    description:
+      'Shopping where things feel like things: products peel off as die-cut stickers and are tossed into a market net bag that sags and swells with the weight. Tip the bag out and it files itself into your cart.',
+    vi: {
+      title: 'Giỏ hàng sticker',
+      description:
+        'Mua sắm mà món đồ có cảm giác thật: sản phẩm bóc ra thành sticker, ném vào túi lưới đi chợ, túi phình và trĩu theo sức nặng. Dốc túi ra, đồ tự xếp thành giỏ hàng.',
+    },
+    author: 'VG Team',
+    component: StickerCart,
+  },
   {
     id: 'paper-plane-chat',
     title: 'Paper Plane · Chat',
