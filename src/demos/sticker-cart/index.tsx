@@ -1,20 +1,19 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
   Easing,
+  FadeIn,
   FadeInDown,
   FadeOut,
   Keyframe,
   LinearTransition,
-  SensorType,
   useAnimatedReaction,
   useAnimatedScrollHandler,
-  useAnimatedSensor,
   useAnimatedStyle,
   useDerivedValue,
   useFrameCallback,
@@ -22,35 +21,28 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
-  ZoomIn,
-  ZoomOut,
   type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Atlas,
-  BlendColor,
   Blur,
-  Canvas,
   ColorMatrix,
   DashPathEffect,
   Group,
-  Image as SkiaImage,
-  LinearGradient,
   Oval,
   Path,
-  Rect,
   Skia,
-  SweepGradient,
   useRectBuffer,
   useRSXformBuffer,
   vec,
   type SkRSXform,
 } from 'react-native-skia';
+import { Canvas as GPUCanvas, type CanvasRef } from 'react-native-webgpu';
 import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 
+import { LateCanvas } from '@/components/late-canvas';
 import { NumericText } from '@/components/numeric-text';
 
 import {
@@ -84,27 +76,19 @@ import {
   tidy,
   type World,
 } from './physics';
-import {
-  buildStickers,
-  CATEGORIES,
-  CELL,
-  formatVnd,
-  PRODUCTS,
-  spriteOf,
-  type Category,
-  type StickerParts,
-} from './stickers';
+import { alreadyBaked, bakeProducts, CELL, frameOf, type Baked } from './bake';
+import { CATEGORIES, formatVnd, PRODUCTS, type Category } from './catalog';
+import { shipOrder } from './order';
 
 /**
- * Sticker Cart: shopping where the things you buy feel like things. Every product is a die-cut
- * sticker with a holographic edge that catches the light as you tilt the phone or scroll; add one
- * and it peels off its card (the backing shows where it was until a fresh one springs in) and is
- * tossed into a market net bag standing on a glass dock, which sags, bounces and swells with the
- * weight, the stickers piling up in plain sight through the net. Hold a sticker to peel it off
- * yourself and throw it in. Tap the bag and it's turned upside down: everything slides out of its
- * mouth and tumbles onto the counter, then files itself into the cart. Step quantities up and
- * down, flick a line away; hold to pay, and the drawstring's pulled shut and the bag is carried
- * off.
+ * Market Bag: shopping where the things you buy feel like things. Every product is a little 3D
+ * model, rendered once into a turntable of frames. Add one and it lifts off its card and is tossed
+ * into a market net bag standing on a glass dock, spinning in depth as it flies; the bag sags and
+ * swells with the weight, everything piling up in plain sight through the net. Hold a product to
+ * pick it up yourself and throw it in. Tap the bag and it's turned upside down: everything slides
+ * out of its mouth and tumbles onto the counter, then files itself into the cart. Step quantities
+ * up and down, flick a line away; hold to pay, and the drawstring's pulled shut and the bag is
+ * carried off.
  */
 
 const BG = '#F4F1EA';
@@ -117,9 +101,6 @@ const CORD_FAR = '#A93322';
 const CORD_SHADE = 'rgba(110,30,15,0.35)';
 /** The light catching the top of a round nylon cord, and the twist of the rope */
 const CORD_LIGHT = '#FF9F84';
-/** Foil colours for the sticker edges, and the glint that runs over them */
-const HOLO = ['#FFB3C7', '#FFE3A3', '#C6F6C1', '#A8E6FF', '#C9B8FF', '#FFB3C7'];
-const GLINT = ['#FFFFFF00', '#FFFFFF99', '#FFFFFF00'];
 const GLASS = isLiquidGlassAvailable();
 
 /** Spend this much and delivery's on us */
@@ -128,11 +109,11 @@ const DELIVERY = 30_000;
 
 const ART = R0 * 2;
 const PAD = 16;
-/** A card's sticker, with room round it for its shadow and its lift */
+/** A card's product, with room round it for its shadow and its lift */
 const ART_BOX = ART + PAD * 2;
 const ROW = 78;
 const GAP = 10;
-/** Where a line's stack of stickers sits */
+/** Where a line's stack of products sits */
 const STACK_X = 28 + R0 * LIST_S;
 /** Everything below the list: the summary and the pay button */
 const FOOT = 268;
@@ -147,7 +128,7 @@ const sumOf = (lines: Line[]) => lines.reduce((sum, l) => sum + PRODUCTS[l.produ
 const short = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M ₫` : `${Math.max(1, Math.round(n / 1000))}K ₫`;
 
-/** RSXform for a sticker at (x, y), turned by a, at scale s */
+/** RSXform for a product at (x, y), turned by a, at scale s */
 const place = (val: SkRSXform, x: number, y: number, a: number, s: number) => {
   'worklet';
   const k = ((R0 * 2) / CELL) * s;
@@ -298,10 +279,39 @@ function bowPath(t: Sack) {
     .detach();
 }
 
-export default function StickerCart() {
+export default function MarketBag() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const { atlas, parts } = useMemo(() => buildStickers(), []);
+  /** The products, rendered: nothing until the bake's done (once per run of the app) */
+  const [baked, setBaked] = useState<Baked | null>(null);
+  const bakerRef = useRef<CanvasRef>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let job = alreadyBaked();
+      if (!job) {
+        const adapter = await navigator.gpu.requestAdapter();
+        const device = await adapter?.requestDevice();
+        // The hidden canvas may not be ready on the very first frame
+        let context = bakerRef.current?.getContext('webgpu') ?? null;
+        for (let tries = 0; !context && tries < 20 && !cancelled; tries++) {
+          await new Promise((r) => setTimeout(r, 50));
+          context = bakerRef.current?.getContext('webgpu') ?? null;
+        }
+        if (!device || !context) {
+          if (__DEV__) (globalThis as { bakeStage?: string }).bakeStage = `no ${device ? 'context' : 'device'}`;
+          return;
+        }
+        job = bakeProducts(context, device);
+      }
+      const result = await job;
+      if (!cancelled) setBaked(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const atlas = baked?.atlas ?? null;
   const world = useSharedValue<World>(makeWorld());
   /** The bag dropped out of sight; turned over to pour; carried off; its drawstring pulled */
   const hide = useSharedValue(1);
@@ -312,7 +322,6 @@ export default function StickerCart() {
    * canvas draws it too big until it's next recorded
    */
   const pop = useSharedValue(1);
-  const wobble = useSharedValue(0);
   const dock = useSharedValue(0);
   /** The emptied bag tossed aside, off to the right */
   const aside = useSharedValue(0);
@@ -323,10 +332,27 @@ export default function StickerCart() {
   const flash = useSharedValue(0);
   const lifted = useSharedValue(-1);
   const held = useSharedValue(-1);
-  const clock = useSharedValue(0);
   const scrollY = useSharedValue(0);
-  const chipsAt = useSharedValue(0);
-  const gravity = useAnimatedSensor(SensorType.GRAVITY, { interval: 'auto' });
+  /** Where the category bar sits in the page, before it sticks to the top */
+  const [chipsAt, setChipsAt] = useState(0);
+  const chipsRef = useRef<View>(null);
+  const rootRef = useRef<View>(null);
+  // Measured against the screen it's on, so a screen still sliding in can't skew it. Its own layout
+  // events don't say where it is reliably (with the content's padding, or without, depending), and
+  // can go missing while the products are being rendered, so it's measured again to be sure.
+  const measureChips = useCallback(
+    () =>
+      rootRef.current?.measureInWindow((_rx, ry) =>
+        chipsRef.current?.measureInWindow((_x, y) => {
+          if (y - ry > 0) setChipsAt(y - ry + scrollY.get());
+        })
+      ),
+    [scrollY]
+  );
+  useEffect(() => {
+    const t = [setTimeout(measureChips, 120), setTimeout(measureChips, 700), setTimeout(measureChips, 1500)];
+    return () => t.forEach(clearTimeout);
+  }, [baked, measureChips]);
 
   const [cart, setCart] = useState<Line[]>([]);
   const [open, setOpen] = useState(false);
@@ -356,7 +382,7 @@ export default function StickerCart() {
 
   /**
    * The bag and its dock stay out of the way until there's something to put in it: then the dock
-   * slides up and the bag pops up out of it, its handles springing up after it. Emptied, they go.
+   * slides up and the bag rises out of it, its handles lifting after it. Emptied, they go.
    */
   const reveal = () => {
     if (shownRef.current) return;
@@ -364,33 +390,14 @@ export default function StickerCart() {
     setDocked([]);
     hide.set(0);
     pop.set(0);
-    dock.set(withSpring(1, { damping: 16, stiffness: 170 }));
-    pop.set(
-      withDelay(
-        100,
-        withSequence(
-          withTiming(1.06, { duration: 320, easing: Easing.out(Easing.cubic) }),
-          withTiming(1, { duration: 240, easing: Easing.inOut(Easing.quad) })
-        )
-      )
-    );
-    wobble.set(
-      withDelay(
-        100,
-        withSequence(
-          withTiming(-0.1, { duration: 150, easing: Easing.out(Easing.quad) }),
-          withTiming(0.06, { duration: 170, easing: Easing.inOut(Easing.quad) }),
-          withTiming(-0.025, { duration: 150, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0, { duration: 170, easing: Easing.inOut(Easing.quad) })
-        )
-      )
-    );
+    dock.set(withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }));
+    pop.set(withDelay(90, withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic) })));
     later(130, () => Presets.System.impactSoft());
   };
   const conceal = () => {
     if (!shownRef.current) return;
     shownRef.current = false;
-    pop.set(withTiming(0, { duration: 240, easing: Easing.in(Easing.back(1.6)) }));
+    pop.set(withTiming(0, { duration: 260, easing: Easing.in(Easing.cubic) }));
     dock.set(withDelay(80, withTiming(0, { duration: 320, easing: Easing.in(Easing.cubic) })));
     later(420, () => {
       if (shownRef.current) return;
@@ -430,7 +437,7 @@ export default function StickerCart() {
   const groups = groupsOf(cart);
   const listTop = insets.top + 128;
   const listBottom = height - insets.bottom - FOOT;
-  /** Rows get shorter, and their stickers smaller, when there are many */
+  /** Rows get shorter, and their products smaller, when there are many */
   const layoutFor = (n: number) => {
     const pitch = Math.min(ROW + GAP, Math.floor((listBottom - listTop) / Math.max(1, n)));
     const rowH = pitch - GAP;
@@ -442,7 +449,7 @@ export default function StickerCart() {
     y: listTop + row * rows.pitch + rows.rowH / 2 - k * 4,
   });
 
-  /** Spring every sticker on the counter to its line in the list: copies of a thing fan out a little */
+  /** Spring every product on the counter to its line in the list: copies of a thing fan out a little */
   const tidyTo = (lines: Line[]) => {
     const order_ = groupsOf(lines);
     const { pitch, rowH, s } = layoutFor(order_.length);
@@ -470,7 +477,7 @@ export default function StickerCart() {
     }, targets);
   };
 
-  // What JS hears from the stickers' world
+  // What JS hears from the products' world
   const onEvent = (kind: number, slot: number, product: number) => {
     if (kind === LANDED || kind === SPAWNED) {
       if (cartRef.current.some((l) => l.slot === slot)) return;
@@ -494,7 +501,6 @@ export default function StickerCart() {
 
   useFrameCallback((frame) => {
     const dt = Math.min(1 / 30, (frame.timeSincePreviousFrame ?? 16) / 1000);
-    clock.set(clock.get() + dt);
     world.modify((w) => {
       'worklet';
       w.geo.hide = hide.get();
@@ -511,7 +517,7 @@ export default function StickerCart() {
   // ---- Adding ----
   const addFromCard = (product: number) => {
     const view = arts.current.get(product);
-    if (!view || open) return;
+    if (!view || open || !baked) return;
     reveal();
     view.measureInWindow((x, y, w, h) => {
       Presets.System.impactLight();
@@ -626,7 +632,7 @@ export default function StickerCart() {
     }, slots);
     const left = cartRef.current.filter((l) => l.product !== product);
     commit(left);
-    // The lines below move up to close the gap, and their stickers with them
+    // The lines below move up to close the gap, and their products with them
     if (left.length === 0) later(400, () => closeCart());
     else later(90, () => tidyTo(left));
   };
@@ -669,6 +675,8 @@ export default function StickerCart() {
   const checkout = () => {
     Presets.System.notificationSuccess();
     const placed = { id: `VG-${orderNo}`, items: cart.length, total: grand };
+    // On its way: the box that turns up in Unboxing holds these
+    shipOrder({ id: placed.id, items: cart.map((l) => l.product) });
     setOrderNo(orderNo + 1);
     closeCart(() => {
       // Drawstring pulled shut, and the bag's carried off by its handles
@@ -684,7 +692,7 @@ export default function StickerCart() {
             return w;
           });
         });
-        depart.set(withTiming(1, { duration: 820, easing: Easing.in(Easing.back(0.6)) }));
+        depart.set(withTiming(1, { duration: 820, easing: Easing.in(Easing.cubic) }));
       });
       // Gone, and what was in it went with it; the dock goes too, till next time
       later(1400, () => {
@@ -708,11 +716,11 @@ export default function StickerCart() {
     });
   };
 
-  // ---- Drawing the stickers ----
+  // ---- Drawing the products: each the frame of its turntable for the way it's turned ----
   const sprites = useRectBuffer(MAX, (r, i) => {
     'worklet';
-    const { x, y } = spriteOf(world.get().bodies[i].product);
-    r.setXYWH(x, y, CELL, CELL);
+    const b = world.get().bodies[i];
+    r.setXYWH(frameOf(b.yaw) * CELL, b.product * CELL, CELL, CELL);
   });
   const inBag = useRSXformBuffer(MAX, (val, i) => {
     'worklet';
@@ -747,11 +755,10 @@ export default function StickerCart() {
   const farHandle = useDerivedValue(() => handlePath(sack.get(), -1, sway.get(), unfurl.get()));
   const nearHandle = useDerivedValue(() => handlePath(sack.get(), 1, sway.get() * 1.3, unfurl.get()));
   const tassel = useDerivedValue(() => tasselPath(sack.get(), sway.get()));
-  // Popping up out of the dock: it grows from its bottom knot with a wobble as the spring settles
+  // Rising out of the dock: it grows from its bottom knot
   const popTurn = useDerivedValue(() => [
     { translateY: (1 - Math.min(1, pop.get())) * 26 },
     { scale: Math.max(0.001, pop.get()) },
-    { rotate: wobble.get() },
   ]);
   const popPivot = useDerivedValue(() => vec(sack.get().cx, sack.get().m + sack.get().depth));
   const shadow = useDerivedValue(() => {
@@ -770,17 +777,11 @@ export default function StickerCart() {
   const bagPivot = useDerivedValue(() => vec(sack.get().cx, sack.get().m));
   const bowOpacity = useDerivedValue(() => Math.min(1, cinch.get() * 3));
 
-  /** How the foil catches the light: the phone's tilt, the scroll, and a slow drift */
-  const sheen = useDerivedValue(() => {
-    const g = gravity.sensor.get();
-    return clock.get() * 0.25 + scrollY.get() * 0.004 + g.x * 0.08 + g.y * 0.05;
-  });
-
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.set(e.contentOffset.y);
   });
   const chipsStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: Math.max(insets.top + 6, chipsAt.get() - scrollY.get()) }],
+    transform: [{ translateY: Math.max(insets.top + 6, chipsAt - scrollY.get()) }],
   }));
   const counterStyle = useAnimatedStyle(() => ({ opacity: counter.get() }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
@@ -798,7 +799,7 @@ export default function StickerCart() {
   };
 
   return (
-    <View style={styles.root}>
+    <View ref={rootRef} style={styles.root}>
       <StatusBar style="dark" />
       <Animated.ScrollView
         style={StyleSheet.absoluteFill}
@@ -811,25 +812,24 @@ export default function StickerCart() {
         }}
         scrollEnabled={!open}>
         <Text style={styles.title}>Market</Text>
-        <Text style={styles.subtitle}>Tap +, or peel a sticker off and toss it in the bag.</Text>
-        <View style={styles.chipsSpace} onLayout={(e) => chipsAt.set(e.nativeEvent.layout.y)} />
+        <Text style={styles.subtitle}>Tap +, or pick one up and toss it in the bag.</Text>
+        <View ref={chipsRef} style={styles.chipsSpace} onLayout={() => measureChips()} />
         <View style={styles.grid}>
           {shown.map((p) => (
             <Animated.View
               key={p.id}
-              entering={ZoomIn.springify().damping(16)}
-              exiting={ZoomOut.duration(160)}
-              layout={LinearTransition.springify().damping(19).stiffness(170)}>
+              entering={FadeIn.duration(240)}
+              exiting={FadeOut.duration(140)}
+              layout={LinearTransition.duration(300).easing(Easing.out(Easing.cubic))}>
               <Card
                 product={p.id}
-                part={parts[p.id]}
+                hero={baked?.heroes[p.id] ?? null}
+                shadow={baked?.shadows[p.id] ?? null}
                 count={counts[p.id] ?? 0}
                 width={cardW}
                 lifted={lifted}
                 held={held}
                 world={world}
-                sheen={sheen}
-                clock={clock}
                 onAdd={() => addFromCard(p.id)}
                 onPeel={reveal}
                 artRef={(v) => {
@@ -842,7 +842,11 @@ export default function StickerCart() {
         </View>
       </Animated.ScrollView>
 
-      <Animated.View style={[styles.chips, chipsStyle]}>
+      {/* Mounted afresh once the products are rendered: that commit puts animated styles round here
+          back to how they first rendered, the bar back at the top and its pill to nothing */}
+      {/* The page fades out under the status bar, so cards scrolled up don't run into the clock */}
+      <View pointerEvents="none" style={[styles.topFade, { height: insets.top + 30 }]} />
+      <Animated.View key={baked ? 'shop' : 'baking'} style={[styles.chips, chipsStyle]}>
         <Chips value={category} onChange={pickCategory} />
       </Animated.View>
 
@@ -860,7 +864,7 @@ export default function StickerCart() {
             <View style={styles.dockSide}>
               <View style={styles.dockCount}>
                 {/* A new count pops in each time something lands */}
-                <Animated.View key={docked.length} entering={ZoomIn.springify().damping(11)} style={styles.countDot}>
+                <Animated.View key={docked.length} entering={FadeIn.duration(180)} style={styles.countDot}>
                   <Text style={styles.countText}>{docked.length}</Text>
                 </Animated.View>
                 <Text style={styles.dockUnit}>{docked.length === 1 ? 'item' : 'items'}</Text>
@@ -909,7 +913,7 @@ export default function StickerCart() {
           : null}
         {listed ? (
           <Animated.View
-            entering={FadeInDown.delay(120).springify().damping(18)}
+            entering={FadeInDown.delay(120).duration(360).easing(Easing.out(Easing.cubic))}
             style={[styles.foot, { paddingBottom: insets.bottom + 8 }]}>
             <Glass style={styles.summary}>
               <View style={styles.sumRow}>
@@ -919,7 +923,7 @@ export default function StickerCart() {
               <View style={styles.sumRow}>
                 <Text style={styles.sumLabel}>Delivery</Text>
                 {free ? (
-                  <Animated.Text entering={ZoomIn.springify()} style={[styles.sumValue, { color: GREEN }]}>
+                  <Animated.Text entering={FadeIn.duration(220)} style={[styles.sumValue, { color: GREEN }]}>
                     Free
                   </Animated.Text>
                 ) : (
@@ -1033,35 +1037,17 @@ export default function StickerCart() {
         </Animated.Text>
       ))}
       {order ? <Receipt order={order} top={height * 0.24} /> : null}
+      {baked ? null : <GPUCanvas ref={bakerRef} style={styles.baker} />}
     </View>
   );
 }
 
 /** A price floating up out of the bag as the thing lands in it */
 const FLOAT = new Keyframe({
-  0: { opacity: 0, transform: [{ translateY: 14 }, { scale: 0.7 }] },
-  18: { opacity: 1, transform: [{ translateY: -4 }, { scale: 1.06 }] },
-  100: { opacity: 0, transform: [{ translateY: -52 }, { scale: 1 }] },
+  0: { opacity: 0, transform: [{ translateY: 10 }] },
+  20: { opacity: 1, transform: [{ translateY: 0 }] },
+  100: { opacity: 0, transform: [{ translateY: -44 }] },
 }).duration(1100);
-
-/**
- * A Skia canvas that records its content again a few times after it mounts. When its native view is
- * moved between parents (a screen being pushed, say) Skia 3.0.3 makes a new one and doesn't hand it
- * the recording it was given, so the canvas stays blank until React renders it again: this does.
- */
-function LateCanvas({ style, children }: { style: StyleProp<ViewStyle>; children: ReactNode }) {
-  const [pass, setPass] = useState(0);
-  useEffect(() => {
-    if (pass === 0 || pass >= 3) return;
-    const t = setTimeout(() => setPass((n) => n + 1), pass === 1 ? 450 : 900);
-    return () => clearTimeout(t);
-  }, [pass]);
-  return (
-    <View style={style} pointerEvents="none" onLayout={() => setPass((n) => Math.max(n, 1))}>
-      <Canvas style={StyleSheet.absoluteFill}>{pass > 0 ? <Group key={pass}>{children}</Group> : null}</Canvas>
-    </View>
-  );
-}
 
 /** Liquid Glass where there is any, and frosted white where there isn't */
 function Glass({
@@ -1089,39 +1075,62 @@ function Glass({
 
 /** The categories, in a glass bar that sticks to the top; the selection slides between them */
 function Chips({ value, onChange }: { value: 'All' | Category; onChange: (c: 'All' | Category) => void }) {
-  const spots = useRef(new Map<string, { x: number; w: number }>());
+  // Where each chip is, kept as state so the pill always finds the selected one, however late the
+  // layout comes in
+  const [spots, setSpots] = useState<Partial<Record<string, { x: number; w: number }>>>({});
   const x = useSharedValue(0);
   const w = useSharedValue(0);
+  const placed = useRef(false);
+  const row = useRef<View>(null);
+  const chips = useRef(new Map<string, View>());
+  useEffect(() => {
+    // Each chip against the row it's in, so nothing moving round them can throw it off
+    const measure = () => {
+      const within = row.current;
+      if (!within) return;
+      chips.current.forEach((view, c) =>
+        view.measureLayout(within, (cx, _cy, cw) => {
+          if (cw > 0)
+            setSpots((all) => (all[c]?.x === cx && all[c]?.w === cw ? all : { ...all, [c]: { x: cx, w: cw } }));
+        })
+      );
+    };
+    const t = [setTimeout(measure, 150), setTimeout(measure, 800), setTimeout(measure, 1600)];
+    return () => t.forEach(clearTimeout);
+  }, []);
+  const spot = spots[value];
+  useEffect(() => {
+    if (!spot) return;
+    const glide = { duration: 280, easing: Easing.out(Easing.cubic) };
+    // Straight there the first time, glides after that
+    x.set(placed.current ? withTiming(spot.x, glide) : spot.x);
+    w.set(placed.current ? withTiming(spot.w, glide) : spot.w);
+    placed.current = true;
+  }, [spot, x, w]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }], width: w.get() }));
-  const springy = { damping: 18, stiffness: 220 };
   return (
     <Glass style={styles.chipBar}>
-      <Animated.View style={[styles.chipPill, pill]} />
-      {CATEGORIES.map((c) => (
-        <Pressable
-          key={c}
-          onLayout={(e) => {
-            const { x: cx, width: cw } = e.nativeEvent.layout;
-            spots.current.set(c, { x: cx, w: cw });
-            if (c === value) {
-              x.set(cx);
-              w.set(cw);
-            }
-          }}
-          onPress={() => {
-            const spot = spots.current.get(c);
-            if (spot) {
-              x.set(withSpring(spot.x, springy));
-              w.set(withSpring(spot.w, springy));
-            }
-            onChange(c);
-          }}
-          accessibilityRole="button"
-          accessibilityState={{ selected: c === value }}
-          style={styles.chip}>
-          <Text style={[styles.chipText, c === value && styles.chipTextOn]}>{c}</Text>
-        </Pressable>
-      ))}
+      <View ref={row} style={styles.chipRow}>
+        <Animated.View style={[styles.chipPill, pill]} />
+        {CATEGORIES.map((c) => (
+          <Pressable
+            key={c}
+            ref={(v) => {
+              if (v) chips.current.set(c, v);
+              else chips.current.delete(c);
+            }}
+            onLayout={(e) => {
+              const { x: cx, width: cw } = e.nativeEvent.layout;
+              setSpots((all) => ({ ...all, [c]: { x: cx, w: cw } }));
+            }}
+            onPress={() => onChange(c)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: c === value }}
+            style={styles.chip}>
+            <Text style={[styles.chipText, c === value && styles.chipTextOn]}>{c}</Text>
+          </Pressable>
+        ))}
+      </View>
     </Glass>
   );
 }
@@ -1130,7 +1139,7 @@ function Chips({ value, onChange }: { value: 'All' | Category; onChange: (c: 'Al
 function Meter({ progress, style }: { progress: number; style?: StyleProp<ViewStyle> }) {
   const p = useSharedValue(0);
   useEffect(() => {
-    p.set(withSpring(Math.min(1, progress), { damping: 20, stiffness: 140 }));
+    p.set(withTiming(Math.min(1, progress), { duration: 520, easing: Easing.out(Easing.cubic) }));
   }, [p, progress]);
   // A spring overshoots below nothing on its way down, and a negative width would stick
   const fill = useAnimatedStyle(() => ({
@@ -1146,27 +1155,25 @@ function Meter({ progress, style }: { progress: number; style?: StyleProp<ViewSt
 
 function Card({
   product,
-  part,
+  hero,
+  shadow,
   count,
   width,
   lifted,
   held,
   world,
-  sheen,
-  clock,
   onAdd,
   onPeel,
   artRef,
 }: {
   product: number;
-  part: StickerParts | null;
+  hero: string | null;
+  shadow: string | null;
   count: number;
   width: number;
   lifted: SharedValue<number>;
   held: SharedValue<number>;
   world: SharedValue<World>;
-  sheen: SharedValue<number>;
-  clock: SharedValue<number>;
   onAdd: () => void;
   onPeel: () => void;
   artRef: (v: View | null) => void;
@@ -1174,13 +1181,14 @@ function Card({
   const p = PRODUCTS[product];
   const home = useSharedValue({ x: 0, y: 0 });
   const press = useSharedValue(0);
-  const peeled = () => {
+  const picked = () => {
     Presets.System.impactLight();
     onPeel();
   };
 
-  // Hold the sticker to peel it off, then throw it
+  // Hold the product to pick it up, then throw it
   const drag = Gesture.Pan()
+    .enabled(hero !== null)
     .activateAfterLongPress(170)
     .onBegin(() => {
       press.set(withTiming(1, { duration: 170 }));
@@ -1195,7 +1203,7 @@ function Card({
         held.set(grab(w, product, cx, cy, e.absoluteX, e.absoluteY));
         return w;
       });
-      scheduleOnRN(peeled);
+      scheduleOnRN(picked);
     })
     .onChange((e) => {
       const slot = held.get();
@@ -1223,17 +1231,17 @@ function Card({
   return (
     <View style={[styles.card, { width, backgroundColor: p.tint }]}>
       {count > 0 ? (
-        <Animated.View entering={ZoomIn.springify().damping(12)} exiting={ZoomOut.duration(150)} style={styles.badge}>
+        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={styles.badge}>
           <NumericText value={String(count)} fontSize={12} color="#FFFFFF" weight="bold" />
           <Text style={styles.badgeText}>in bag</Text>
         </Animated.View>
       ) : null}
       <GestureDetector gesture={drag}>
         <View ref={artRef} collapsable={false} style={styles.artBox}>
-          {part ? (
-            <StickerArt index={product} part={part} lifted={lifted} press={press} sheen={sheen} clock={clock} />
+          {hero && shadow ? (
+            <ProductArt index={product} hero={hero} shadow={shadow} lifted={lifted} press={press} />
           ) : (
-            <Text style={styles.emoji}>{p.art}</Text>
+            <View style={styles.placeholder} />
           )}
         </View>
       </GestureDetector>
@@ -1252,77 +1260,51 @@ function Card({
 }
 
 /**
- * A card's sticker: its foil edge catching the light, a glint running over it now and then, a
- * slow float; lifted when you press on it. Peeled off, it leaves the backing showing where it was,
- * until a fresh one springs into the gap.
+ * A card's product, rendered from its 3D model, standing on its own soft shadow. Pressed, it rises
+ * off the card and its shadow spreads under it; taken, it's gone from the card for a moment and a
+ * fresh one rises quietly into its place.
  */
-function StickerArt({
+function ProductArt({
   index,
-  part,
+  hero,
+  shadow,
   lifted,
   press,
-  sheen,
-  clock,
 }: {
   index: number;
-  part: StickerParts;
+  hero: string;
+  shadow: string;
   lifted: SharedValue<number>;
   press: SharedValue<number>;
-  sheen: SharedValue<number>;
-  clock: SharedValue<number>;
 }) {
   const here = useSharedValue(1);
   useAnimatedReaction(
     () => lifted.get() === index,
     (off, was) => {
       if (off === was) return;
-      here.set(off ? 0 : withDelay(60, withSpring(1, { damping: 11, stiffness: 150 })));
+      here.set(
+        off
+          ? withTiming(0, { duration: 90 })
+          : withDelay(160, withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic) }))
+      );
     }
   );
-  const c = vec(ART_BOX / 2, ART_BOX / 2);
-  const body = useDerivedValue(() => {
-    const t = clock.get() + index * 1.7;
-    return [
-      { translateY: Math.sin(t * 1.2) * 1.5 - press.get() * 5 },
-      { rotate: Math.sin(t * 0.8) * 0.03 - press.get() * 0.06 },
-      { scale: (0.5 + 0.5 * here.get()) * (1 + press.get() * 0.07) },
-    ];
-  });
-  const opacity = useDerivedValue(() => Math.min(1, here.get() * 1.6));
-  const gap = useDerivedValue(() => 1 - Math.min(1, here.get()));
-  const shade = useDerivedValue(() => [{ translateY: 5 + press.get() * 9 }, { scale: 1 - press.get() * 0.03 }]);
-  const holo = useDerivedValue(() => [{ rotate: sheen.get() * 1.4 + index }]);
-  const glintFrom = useDerivedValue(() => {
-    const f = clock.get() * 0.18 + index * 0.21 + sheen.get() * 0.05;
-    const g = (f - Math.floor(f)) * 3 - 1;
-    return vec(PAD + g * ART - 26, PAD);
-  });
-  const glintTo = useDerivedValue(() => vec(glintFrom.get().x + 52, PAD + ART));
+  const body = useAnimatedStyle(() => ({
+    opacity: here.get(),
+    transform: [
+      { translateY: (1 - here.get()) * 12 - press.get() * 9 },
+      { scale: (0.94 + 0.06 * here.get()) * (1 + press.get() * 0.06) },
+    ],
+  }));
+  const ground = useAnimatedStyle(() => ({
+    opacity: (0.3 + 0.7 * here.get()) * (1 - press.get() * 0.4),
+    transform: [{ scale: 1 + press.get() * 0.14 }],
+  }));
   return (
-    <LateCanvas style={styles.artCanvas}>
-      {/* The backing sheet, where it was cut from */}
-      <SkiaImage image={part.border} x={PAD} y={PAD} width={ART} height={ART} opacity={gap}>
-        <BlendColor color="rgba(90,60,30,0.14)" mode="srcIn" />
-      </SkiaImage>
-      <Group transform={body} origin={c} opacity={opacity}>
-        <Group transform={shade} origin={c}>
-          <SkiaImage image={part.border} x={PAD} y={PAD} width={ART} height={ART} opacity={0.3}>
-            <BlendColor color="#5A3A1E" mode="srcIn" />
-            <Blur blur={7} />
-          </SkiaImage>
-        </Group>
-        <Group layer>
-          <SkiaImage image={part.border} x={PAD} y={PAD} width={ART} height={ART} />
-          <Rect x={PAD} y={PAD} width={ART} height={ART} blendMode="srcATop" opacity={0.55}>
-            <SweepGradient c={c} colors={HOLO} transform={holo} origin={c} />
-          </Rect>
-          <SkiaImage image={part.art} x={PAD} y={PAD} width={ART} height={ART} />
-          <Rect x={PAD} y={PAD} width={ART} height={ART} blendMode="srcATop">
-            <LinearGradient start={glintFrom} end={glintTo} colors={GLINT} />
-          </Rect>
-        </Group>
-      </Group>
-    </LateCanvas>
+    <>
+      <Animated.Image source={{ uri: shadow }} style={[styles.art, ground]} />
+      <Animated.Image source={{ uri: hero }} style={[styles.art, body]} />
+    </>
   );
 }
 
@@ -1330,13 +1312,13 @@ function StickerArt({
 function AddButton({ onPress, label }: { onPress: () => void; label: string }) {
   const turn = useSharedValue(0);
   const icon = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${turn.get() * 90}deg` }, { scale: 1 + Math.sin(turn.get() * Math.PI) * 0.22 }],
+    transform: [{ rotate: `${turn.get() * 90}deg` }],
   }));
   return (
     <Pressable
       onPress={() => {
         turn.set(0);
-        turn.set(withTiming(1, { duration: 380, easing: Easing.out(Easing.back(2)) }));
+        turn.set(withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
         onPress();
       }}
       hitSlop={8}
@@ -1352,7 +1334,7 @@ function AddButton({ onPress, label }: { onPress: () => void; label: string }) {
 }
 
 /**
- * A line in the cart, on glass. Its stickers sit on its left and follow it as it's swiped; swiped
+ * A line in the cart, on glass. Its products sit on its left and follow it as it's swiped; swiped
  * far enough, a bin shows behind it and letting go flicks the lot away.
  */
 function LineRow({
@@ -1400,7 +1382,7 @@ function LineRow({
         x.set(withTiming(-520, { duration: 220 }));
         scheduleOnRN(onRemove);
       } else {
-        x.set(withSpring(0, { damping: 18, stiffness: 220 }));
+        x.set(withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }));
         armed.set(0);
         world.modify((w) => {
           'worklet';
@@ -1412,12 +1394,12 @@ function LineRow({
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
   const bin = useAnimatedStyle(() => ({
     opacity: Math.min(1, -x.get() / 60),
-    transform: [{ scale: withSpring(armed.get() ? 1.15 : 0.75 + Math.min(0.25, -x.get() / 360)) }],
+    transform: [{ scale: withTiming(armed.get() ? 1.1 : 0.75 + Math.min(0.25, -x.get() / 360), { duration: 140 }) }],
   }));
   return (
     <Animated.View
-      entering={FadeInDown.delay(delay).springify().damping(18)}
-      layout={LinearTransition.springify().stiffness(190).damping(22)}
+      entering={FadeInDown.delay(delay).duration(320).easing(Easing.out(Easing.cubic))}
+      layout={LinearTransition.duration(280).easing(Easing.out(Easing.cubic))}
       style={[styles.rowWrap, { top, height }]}>
       <Animated.View style={[styles.bin, bin]}>
         <SymbolView name="trash.fill" size={17} tintColor="#FFFFFF" />
@@ -1519,7 +1501,7 @@ function HoldToPay({ amount, onDone }: { amount: number; onDone: () => void }) {
 function Receipt({ order, top }: { order: Order; top: number }) {
   return (
     <Animated.View
-      entering={FadeInDown.springify().damping(15)}
+      entering={FadeInDown.duration(360).easing(Easing.out(Easing.cubic))}
       exiting={FadeOut.duration(240)}
       pointerEvents="none"
       style={[styles.receiptWrap, { top }]}>
@@ -1572,20 +1554,29 @@ const styles = StyleSheet.create({
     marginTop: 14,
     height: 60,
   },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    experimental_backgroundImage: `linear-gradient(180deg, ${BG} 0%, ${BG} 62%, rgba(244,241,234,0) 100%)`,
+  },
   chips: {
     position: 'absolute',
     top: 0,
     left: 14,
   },
   chipBar: {
-    flexDirection: 'row',
     padding: 4,
     borderRadius: 22,
   },
+  chipRow: {
+    flexDirection: 'row',
+  },
   chipPill: {
     position: 'absolute',
-    top: 4,
-    bottom: 4,
+    top: 0,
+    bottom: 0,
     left: 0,
     borderRadius: 18,
     backgroundColor: INK,
@@ -1644,12 +1635,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: -6,
   },
-  artCanvas: {
-    width: ART_BOX,
-    height: ART_BOX,
+  art: {
+    position: 'absolute',
+    left: PAD,
+    top: PAD,
+    width: ART,
+    height: ART,
   },
-  emoji: {
-    fontSize: 64,
+  placeholder: {
+    width: ART * 0.7,
+    height: ART * 0.7,
+    borderRadius: ART,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
+  baker: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 2,
+    height: 2,
+    opacity: 0,
   },
   name: {
     fontSize: 15,

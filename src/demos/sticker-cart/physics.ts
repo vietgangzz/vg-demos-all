@@ -1,16 +1,17 @@
 /**
- * The stickers' world, stepped on the UI thread every frame. Each sticker is a disc: it can be
+ * The products' world, stepped on the UI thread every frame. Each product is a disc: it can be
  * held under a finger, thrown (a real ballistic arc, aimed so it drops into the bag's mouth),
  * tumble inside the bag and pile up on the others, pour out of the bag's mouth when it's turned
  * upside down, spring to a place in the cart's list, or be flicked away. Discs keep it cheap and
- * steady; die-cut stickers are round enough that nobody can tell.
+ * steady. Each also turns about its own upright axis (`yaw`), which picks the frame of its 3D
+ * turntable to draw, so it spins in depth as it flies.
  */
 
-/** A sticker's radius at full size, in points (the shop cards show it at this size) */
-export const R0 = 54;
+/** A product's radius at full size, in points (the shop cards show it at this size) */
+export const R0 = 60;
 export const MAX = 28;
 export const G = 2600;
-/** How big a sticker is inside the bag, and in the cart's list */
+/** How big a product is inside the bag, and in the cart's list */
 export const BAG_S = 0.52;
 export const LIST_S = 0.6;
 /** The bag's width across its mouth, and its depth from rim to bottom */
@@ -42,6 +43,9 @@ export type Body = {
   vy: number;
   a: number;
   va: number;
+  /** Turned about its upright axis, and how fast it's turning */
+  yaw: number;
+  vyaw: number;
   /** Scale now, and the scale it's easing to */
   s: number;
   ts: number;
@@ -51,7 +55,7 @@ export type Body = {
   tx: number;
   ty: number;
   ta: number;
-  /** Finger, and where on the sticker it's holding */
+  /** Finger, and where on the product it's holding */
   gx: number;
   gy: number;
   ox: number;
@@ -85,7 +89,7 @@ export type World = {
     bh: number;
     /** 0 in place, 1 slid off the bottom of the screen */
     hide: number;
-    /** Where poured stickers come to rest */
+    /** Where poured products come to rest */
     counter: number;
   };
   t: number;
@@ -106,6 +110,8 @@ export function makeWorld(): World {
       vy: 0,
       a: 0,
       va: 0,
+      yaw: 0,
+      vyaw: 0,
       s: 1,
       ts: 1,
       layer: 0,
@@ -174,7 +180,7 @@ export const radiusOf = (b: Body) => {
   return R0 * b.s * 0.8;
 };
 
-/** Throw a sticker so it drops into the bag: a real arc, solved for the time it should take */
+/** Throw a product so it drops into the bag: a real arc, solved for the time it should take */
 export function throwToBag(w: World, b: Body, assist = 1) {
   'worklet';
   // Aimed at where the bag stands, even while it's still coming up into place
@@ -186,7 +192,9 @@ export function throwToBag(w: World, b: Body, assist = 1) {
   const vy = (ty - b.y - 0.5 * G * T * T) / T;
   b.vx = b.vx * (1 - assist) + vx * assist;
   b.vy = b.vy * (1 - assist) + vy * assist;
-  b.va = (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 5);
+  // Mostly a spin about its own axis, so it turns in depth on the way, and a little tumble
+  b.va = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
+  b.vyaw = (Math.random() < 0.5 ? -1 : 1) * (6 + Math.random() * 5);
   b.layer = AIR;
   b.mode = FREE;
   b.ts = BAG_S;
@@ -209,6 +217,8 @@ function fresh(b: Body, product: number, x: number, y: number) {
     vy: 0,
     a: 0,
     va: 0,
+    yaw: 0,
+    vyaw: 0,
     s: 1,
     ts: 1,
     hold: 0,
@@ -217,7 +227,7 @@ function fresh(b: Body, product: number, x: number, y: number) {
   });
 }
 
-/** A sticker peeled off a card at (x, y): it lifts for a beat, then is thrown into the bag */
+/** A product lifted off its card at (x, y): it rises for a beat, then is thrown into the bag */
 export function peel(w: World, product: number, x: number, y: number) {
   'worklet';
   const i = freeSlot(w);
@@ -228,7 +238,7 @@ export function peel(w: World, product: number, x: number, y: number) {
   return i;
 }
 
-/** A sticker picked up under the finger */
+/** A product picked up under the finger */
 export function grab(w: World, product: number, x: number, y: number, fx: number, fy: number) {
   'worklet';
   const i = freeSlot(w);
@@ -239,7 +249,7 @@ export function grab(w: World, product: number, x: number, y: number, fx: number
   return i;
 }
 
-/** Let go of a held sticker: into the bag, or back onto its card if it barely moved */
+/** Let go of a held product: into the bag, or back onto its card if it barely moved */
 export function release(w: World, i: number, vx: number, vy: number, hx: number, hy: number) {
   'worklet';
   const b = w.bodies[i];
@@ -262,7 +272,8 @@ export function spawn(w: World, product: number, x: number, y: number) {
   if (i < 0) return -1;
   const b = w.bodies[i];
   fresh(b, product, x, y - 80);
-  Object.assign(b, { s: 0.2, ts: LIST_S, layer: COUNTER, mode: SPRING, tx: x, ty: y, ta: 0.3 });
+  // Spins into place
+  Object.assign(b, { s: 0.2, ts: LIST_S, layer: COUNTER, mode: SPRING, tx: x, ty: y, ta: 0.3, yaw: Math.PI * 2 });
   w.events.push(SPAWNED, i, product);
   return i;
 }
@@ -276,7 +287,7 @@ export function shakeOut(w: World) {
   });
 }
 
-/** Spring the poured stickers to their places in the list */
+/** Spring the poured products to their places in the list */
 export function tidy(w: World, targets: { slot: number; x: number; y: number; a: number; s: number }[]) {
   'worklet';
   targets.forEach(({ slot, x, y, a, s }, k) => {
@@ -304,7 +315,7 @@ export function pack(w: World) {
   });
 }
 
-/** Flick a sticker away */
+/** Flick a product away */
 export function discard(w: World, slot: number, vx: number) {
   'worklet';
   const b = w.bodies[slot];
@@ -314,7 +325,8 @@ export function discard(w: World, slot: number, vx: number) {
     mode: FREE,
     vx: vx === 0 ? -1400 : vx,
     vy: -500 - Math.random() * 300,
-    va: (vx < 0 ? -1 : 1) * 12,
+    va: (vx < 0 ? -1 : 1) * 6,
+    vyaw: (vx < 0 ? -1 : 1) * 14,
     wait: 0,
     hold: 0,
   });
@@ -329,7 +341,7 @@ export function clearBag(w: World) {
 
 /**
  * One frame. What JS should hear about goes in `w.events`, as (kind, slot, product): LANDED a
- * sticker dropped into the bag, THUD one hit the counter, LEFT a flicked one left the screen,
+ * product dropped into the bag, THUD one hit the counter, LEFT a flicked one left the screen,
  * SPAWNED one was added in the cart, SPILLED one fell out of the upturned bag
  */
 export function step(w: World, dt: number) {
@@ -371,9 +383,11 @@ export function step(w: World, dt: number) {
         b.vy = (fy - b.y) / h;
         b.x = fx;
         b.y = fy;
-        // It leans into the way it's dragged, like paper does
-        const lean = Math.max(-0.5, Math.min(0.5, b.vx * 0.0005));
+        // It leans a little into the way it's dragged, and turns to look where it's going
+        const lean = Math.max(-0.25, Math.min(0.25, b.vx * 0.00025));
         b.a += (lean - b.a) * Math.min(1, h * 12);
+        const look = Math.max(-0.9, Math.min(0.9, -b.vx * 0.0012));
+        b.yaw += (look - b.yaw) * Math.min(1, h * 8);
         continue;
       }
       if (b.mode === SPRING) {
@@ -384,6 +398,10 @@ export function step(w: World, dt: number) {
         b.x += b.vx * h;
         b.y += b.vy * h;
         b.a += b.va * h;
+        // Turning back round to face you, the short way
+        const home = Math.round(b.yaw / (Math.PI * 2)) * Math.PI * 2;
+        b.vyaw += ((home - b.yaw) * 120 - b.vyaw * 18) * h;
+        b.yaw += b.vyaw * h;
         if (b.hold > 0) {
           b.hold -= h;
           if (b.hold <= 0) throwToBag(w, b);
@@ -401,9 +419,11 @@ export function step(w: World, dt: number) {
       }
       b.vx *= 1 - h * 0.15;
       b.va *= 1 - h * 0.8;
+      b.vyaw *= 1 - h * (b.layer === AIR ? 0.2 : 2.4);
       b.x += b.vx * h;
       b.y += b.vy * h;
       b.a += b.va * h;
+      b.yaw += b.vyaw * h;
       const r = radiusOf(b);
       if (b.layer === AIR) {
         if (b.vy > 0 && b.y > mouth + 4 && Math.abs(b.x - w.geo.cx) < sackHalf(w.geo.bw, bulge, 0) - 4) {
@@ -427,7 +447,8 @@ export function step(w: World, dt: number) {
           b.y = mouth - w.tip.rise + dx * sa + dy * ca;
           b.vx = vx * 0.5 + (Math.random() - 0.5) * 260;
           b.vy = vy * 0.5;
-          b.va = (Math.random() - 0.5) * 10;
+          b.va = (Math.random() - 0.5) * 6;
+          b.vyaw = (Math.random() - 0.5) * 18;
           b.a += w.tip.a;
           b.layer = COUNTER;
           b.ts = 0.66;
@@ -478,7 +499,7 @@ export function step(w: World, dt: number) {
         }
       }
     }
-    // Stickers in the bag, and on the counter, push each other apart and roll off one another
+    // Products in the bag, and on the counter, push each other apart and roll off one another
     for (let i = 0; i < MAX; i++) {
       const p = w.bodies[i];
       if (!p.live || p.mode !== FREE || (p.layer !== BAG && p.layer !== COUNTER) || p.wait > 0) continue;
