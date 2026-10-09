@@ -13,6 +13,7 @@ import PaperPlane from '@/demos/paper-plane';
 import PaperPlaneChat from '@/demos/paper-plane-chat';
 import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
+import Unboxing from '@/demos/unboxing';
 import Weather from '@/demos/weather';
 
 export type Demo = {
@@ -33,6 +34,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'unboxing',
+    title: 'Unboxing',
+    description:
+      'Your order turns up as a real box: slit the tape with a box cutter, flick the flaps open, peel the seal, sweep the tissue aside, and what you bought rises out of the shred in 3D. Then stamp your rating.',
+    vi: {
+      title: 'Mở hộp',
+      description:
+        'Đơn hàng tới thành một thùng carton thật: rọc băng keo, lật nắp, bóc tem, vén giấy lụa, món đồ 3D bay lên khỏi giấy rơm. Rồi đóng dấu đánh giá.',
+    },
+    author: 'VG Team',
+    component: Unboxing,
+  },
   {
     id: 'sticker-cart',
     title: 'Market Bag',
