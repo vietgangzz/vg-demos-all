@@ -15,6 +15,9 @@ import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
 import Weather from '@/demos/weather';
+// Kept last: imported first, Market Bag crashed on opening (a worklet failing to carry its Skia
+// buffers to the UI thread). Why the order matters isn't known yet.
+import Fridge from '@/demos/fridge';
 
 export type Demo = {
   /** URL-safe id, used as the route param: /demo/<id> */
@@ -34,6 +37,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'fridge',
+    title: 'Fridge',
+    description:
+      'Made for the folding iPhone: folded, it’s the fridge door, notes and magnets and all. Unfold it and the door swings open on the phone’s own hinge, the light flickers on and cold spills out. Drag in what you just unboxed and each thing goes where it belongs.',
+    vi: {
+      title: 'Tủ lạnh',
+      description:
+        'Dành cho iPhone gập: gập máy là cánh tủ lạnh, đủ giấy nhắn và nam châm. Mở máy ra, cửa xoay mở quanh chính bản lề của máy, đèn chớp sáng, hơi lạnh tràn ra. Kéo đồ vừa mở hộp vào, món nào tự về đúng ngăn nấy.',
+    },
+    author: 'VG Team',
+    component: Fridge,
+  },
   {
     id: 'unboxing',
     title: 'Unboxing',
