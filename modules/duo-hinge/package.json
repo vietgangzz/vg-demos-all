@@ -1,0 +1,9 @@
+{
+  "name": "duo-hinge",
+  "version": "0.1.0",
+  "description": "The hinge of a folding iPhone: its angle and status, as they change",
+  "main": "src/index.tsx",
+  "license": "MIT",
+  "author": "VG Team",
+  "homepage": "https://github.com/anhquan291/vg-demos-all"
+}

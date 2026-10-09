@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 
+import CornerShop from '@/demos/corner-shop';
 import MetroBoard from '@/demos/metro-board';
 import MetroCinematic from '@/demos/metro-cinematic';
 import MetroMorning from '@/demos/metro-morning';
@@ -37,6 +38,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'corner-shop',
+    title: 'Corner Shop',
+    description:
+      'A papercraft gadget shop whose front door is your folding iPhone. Open the phone and the door swings open on its hinge, the bell rings, the lights come on bulb by bulb and you walk in. Tap what you want into the bag, fold the phone to walk out, and open your own front door at home to find it all set out on your desk.',
+    vi: {
+      title: 'Tiệm đồ công nghệ',
+      description:
+        'Một tiệm đồ công nghệ bằng giấy mà cửa chính là chiếc iPhone gập. Mở máy là cửa mở theo bản lề, chuông kêu, đèn sáng từng bóng, bước vào tiệm. Chạm để bỏ đồ vào túi, gập máy để ra về, rồi mở cửa nhà mình: đồ vừa mua được bày lên bàn làm việc.',
+    },
+    author: 'VG Team',
+    component: CornerShop,
+  },
   {
     id: 'fridge',
     title: 'Fridge',
