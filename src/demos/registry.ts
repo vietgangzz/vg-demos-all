@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import CornerShop from '@/demos/corner-shop';
+import FairyGlobe from '@/demos/fairy-globe';
 import MetroBoard from '@/demos/metro-board';
 import MetroCinematic from '@/demos/metro-cinematic';
 import MetroMorning from '@/demos/metro-morning';
@@ -38,6 +39,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'fairy-globe',
+    title: 'Fairy Globe',
+    description:
+      'Christmas Eve on a storybook globe. Santa takes off from his village under the northern lights and races midnight round the world, from the first islands past the date line to snowy Paris and summer in Sydney, a present down every chimney still sparkling. Drag to spin the globe, tap a sparkle to send him there.',
+    vi: {
+      title: 'Quả cầu cổ tích',
+      description:
+        'Đêm Giáng sinh trên quả địa cầu như trong sách truyện. Ông già Noel cất cánh từ ngôi làng dưới cực quang, đuổi theo nửa đêm vòng quanh thế giới, từ những hòn đảo đầu tiên qua đường đổi ngày tới Paris tuyết rơi và Sydney giữa mùa hè, thả quà xuống mọi ống khói còn lấp lánh. Kéo để xoay địa cầu, chạm vào đốm sáng để gửi ông tới đó.',
+    },
+    author: 'VG Team',
+    component: FairyGlobe,
+  },
   {
     id: 'corner-shop',
     title: 'Corner Shop',
