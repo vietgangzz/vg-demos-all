@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 
 import CornerShop from '@/demos/corner-shop';
 import FairyGlobe from '@/demos/fairy-globe';
+import Juice from '@/demos/juice';
 import MetroBoard from '@/demos/metro-board';
 import MetroCinematic from '@/demos/metro-cinematic';
 import MetroMorning from '@/demos/metro-morning';
@@ -39,6 +40,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'juice',
+    title: 'Juice',
+    description:
+      'Plug in and watch your phone drink. The battery is a glass cell of liquid light: the charge comes in where the cable does, a stream of light races across the floor into the dock and pours up into the cell, and the liquid stays level as you tilt the phone. When it will be full, how fast it is charging, and how to keep the battery healthy.',
+    vi: {
+      title: 'Nạp pin',
+      description:
+        'Cắm sạc là thấy máy uống điện. Viên pin là một ống thuỷ tinh chứa ánh sáng lỏng: dòng điện vào đúng chỗ cắm cáp, một dải sáng chạy vụt qua sàn vào đế rồi trào lên trong pin, và mặt nước luôn nằm ngang khi bạn nghiêng máy. Kèm theo bao lâu nữa đầy, sạc nhanh hay chậm và cách giữ pin bền.',
+    },
+    author: 'VG Team',
+    component: Juice,
+  },
   {
     id: 'fairy-globe',
     title: 'Fairy Globe',

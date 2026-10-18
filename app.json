@@ -41,6 +41,12 @@
         }
       ],
       "expo-audio",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Tilt your phone and the charge inside sloshes around."
+        }
+      ],
       "./plugins/with-scene-lifecycle",
       "react-native-webgpu",
       [
