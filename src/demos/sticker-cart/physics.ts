@@ -308,7 +308,7 @@ export function pack(w: World) {
     b.ty = b.y - 12;
     b.ta = b.a;
     b.ts = b.s * 1.08;
-    b.hold = 0.12 + k * 0.07;
+    b.hold = 0.1 + k * 0.11;
     b.wait = 0;
     b.layer = AIR;
     k++;
@@ -373,7 +373,8 @@ export function step(w: World, dt: number) {
         b.wait -= h;
         if (b.mode !== SPRING) continue;
       }
-      b.s += (b.ts - b.s) * Math.min(1, h * (b.mode === HELD ? 14 : 6));
+      const resize = b.mode === HELD ? 14 : b.layer === AIR && b.mode === FREE ? 3.2 : 6;
+      b.s += (b.ts - b.s) * Math.min(1, h * resize);
       if (b.mode === HELD) {
         const nx = b.gx - b.ox;
         const ny = b.gy - b.oy;

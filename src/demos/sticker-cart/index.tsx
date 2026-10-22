@@ -2,7 +2,16 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type ViewInstance,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
@@ -10,6 +19,7 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeOut,
+  FadeOutDown,
   Keyframe,
   LinearTransition,
   useAnimatedReaction,
@@ -79,6 +89,8 @@ import {
 import { alreadyBaked, bakeProducts, CELL, frameOf, type Baked } from './bake';
 import { CATEGORIES, formatVnd, PRODUCTS, type Category } from './catalog';
 import { shipOrder } from './order';
+import { HoldToPay } from './pay';
+import { Success, type Placed } from './success';
 
 /**
  * Market Bag: shopping where the things you buy feel like things. Every product is a little 3D
@@ -87,8 +99,9 @@ import { shipOrder } from './order';
  * swells with the weight, everything piling up in plain sight through the net. Hold a product to
  * pick it up yourself and throw it in. Tap the bag and it's turned upside down: everything slides
  * out of its mouth and tumbles onto the counter, then files itself into the cart. Step quantities
- * up and down, flick a line away; hold to pay, and the drawstring's pulled shut and the bag is
- * carried off.
+ * up and down, flick a line away; hold to pay, and the cart clears away, the bag comes back up and
+ * everything hops back in, the drawstring's pulled shut and the bag is carried off, and the order's
+ * confirmed with a check written in Skia and a burst of confetti.
  */
 
 const BG = '#F4F1EA';
@@ -121,7 +134,8 @@ const FOOT = 268;
 const TIP = 2.85;
 
 type Line = { slot: number; product: number };
-type Order = { id: string; items: number; total: number };
+/** The cart, then paying (it clears and the bag's packed and carried off), then done */
+type Phase = 'cart' | 'paying' | 'done';
 /** The products in a cart, each once, in the order they were first added */
 const groupsOf = (lines: Line[]) => [...new Set(lines.map((l) => l.product))];
 const sumOf = (lines: Line[]) => lines.reduce((sum, l) => sum + PRODUCTS[l.product].price, 0);
@@ -335,8 +349,8 @@ export default function MarketBag() {
   const scrollY = useSharedValue(0);
   /** Where the category bar sits in the page, before it sticks to the top */
   const [chipsAt, setChipsAt] = useState(0);
-  const chipsRef = useRef<View>(null);
-  const rootRef = useRef<View>(null);
+  const chipsRef = useRef<ViewInstance>(null);
+  const rootRef = useRef<ViewInstance>(null);
   // Measured against the screen it's on, so a screen still sliding in can't skew it. Its own layout
   // events don't say where it is reliably (with the content's padding, or without, depending), and
   // can go missing while the products are being rendered, so it's measured again to be sure.
@@ -357,14 +371,22 @@ export default function MarketBag() {
   const [cart, setCart] = useState<Line[]>([]);
   const [open, setOpen] = useState(false);
   const [listed, setListed] = useState(false);
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<Placed | null>(null);
+  const [phase, setPhase] = useState<Phase>('cart');
+  /** The packed bag being carried off: the title gets out of its way */
+  const [leaving, setLeaving] = useState(false);
+  const phaseRef = useRef<Phase>('cart');
+  const toPhase = (next: Phase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  };
   const [category, setCategory] = useState<'All' | Category>('All');
   const [floaters, setFloaters] = useState<{ id: number; text: string }[]>([]);
   const [orderNo, setOrderNo] = useState(2817);
   const cartRef = useRef<Line[]>([]);
   const shownRef = useRef(false);
   const floaterId = useRef(0);
-  const arts = useRef(new Map<number, View>());
+  const arts = useRef(new Map<number, ViewInstance>());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -480,7 +502,11 @@ export default function MarketBag() {
   // What JS hears from the products' world
   const onEvent = (kind: number, slot: number, product: number) => {
     if (kind === LANDED || kind === SPAWNED) {
-      if (cartRef.current.some((l) => l.slot === slot)) return;
+      if (cartRef.current.some((l) => l.slot === slot)) {
+        // Paid for and packed back into the bag
+        if (kind === LANDED && phaseRef.current === 'paying') Presets.System.impactSoft();
+        return;
+      }
       const next = [...cartRef.current, { slot, product }];
       commit(next);
       if (kind === LANDED) {
@@ -674,45 +700,80 @@ export default function MarketBag() {
 
   const checkout = () => {
     Presets.System.notificationSuccess();
-    const placed = { id: `VG-${orderNo}`, items: cart.length, total: grand };
+    const placed: Placed = {
+      id: `VG-${orderNo}`,
+      items: cart.length,
+      total: grand,
+      products: groupsOf(cart),
+    };
     // On its way: the box that turns up in Unboxing holds these
     shipOrder({ id: placed.id, items: cart.map((l) => l.product) });
     setOrderNo(orderNo + 1);
-    closeCart(() => {
-      // Drawstring pulled shut, and the bag's carried off by its handles
+    setOrder(placed);
+    // The pay button turns green and says so; then the cart clears away, leaving its things on the
+    // counter, and the bag comes back up for them
+    later(460, () => toPhase('paying'));
+    later(640, () => hide.set(withTiming(0, { duration: 560, easing: Easing.out(Easing.cubic) })));
+    later(860, () =>
+      scheduleOnUI(() => {
+        'worklet';
+        world.modify((w) => {
+          'worklet';
+          pack(w);
+          return w;
+        });
+      })
+    );
+    // Everything back in: the drawstring's pulled shut, and the bag's carried off by its handles
+    const packed = 860 + 100 + cartRef.current.length * 110 + 820;
+    later(packed, () => {
       Presets.zipper();
       cinch.set(withTiming(1, { duration: 420, easing: Easing.inOut(Easing.cubic) }));
-      later(520, () => {
-        Presets.propel();
-        scheduleOnUI(() => {
+    });
+    later(packed + 380, () => setLeaving(true));
+    later(packed + 500, () => {
+      Presets.propel();
+      scheduleOnUI(() => {
+        'worklet';
+        world.modify((w) => {
           'worklet';
-          world.modify((w) => {
-            'worklet';
-            w.bag.v -= 260;
-            return w;
-          });
+          w.bag.v -= 260;
+          return w;
         });
-        depart.set(withTiming(1, { duration: 820, easing: Easing.in(Easing.cubic) }));
       });
-      // Gone, and what was in it went with it; the dock goes too, till next time
-      later(1400, () => {
-        Presets.triumph();
-        scheduleOnUI(() => {
+      depart.set(withTiming(1, { duration: 760, easing: Easing.in(Easing.cubic) }));
+    });
+    // Gone, and what was in it went with it; the order's confirmed
+    later(packed + 1180, () => {
+      Presets.triumph();
+      toPhase('done');
+    });
+    later(packed + 1320, () => {
+      scheduleOnUI(() => {
+        'worklet';
+        world.modify((w) => {
           'worklet';
-          world.modify((w) => {
-            'worklet';
-            clearBag(w);
-            return w;
-          });
+          clearBag(w);
+          return w;
         });
-        hide.set(1);
-        depart.set(0);
-        cinch.set(0);
-        commit([]);
-        setOrder(placed);
-        conceal();
       });
-      later(5000, () => setOrder(null));
+      hide.set(1);
+      depart.set(0);
+      cinch.set(0);
+      commit([]);
+      conceal();
+    });
+  };
+
+  /** Back to the shop from the order confirmation */
+  const finish = () => {
+    counter.set(withTiming(0, { duration: 420 }));
+    later(440, () => {
+      setListed(false);
+      setOpen(false);
+      setOrder(null);
+      setLeaving(false);
+      toPhase('cart');
     });
   };
 
@@ -861,26 +922,36 @@ export default function MarketBag() {
           accessibilityLabel={`Bag, ${cart.length} items, ${formatVnd(total)}`}>
           <Glass style={styles.dock}>
             <Animated.View pointerEvents="none" style={[styles.dockFlash, flashStyle]} />
-            <View style={styles.dockSide}>
-              <View style={styles.dockCount}>
-                {/* A new count pops in each time something lands */}
-                <Animated.View key={docked.length} entering={FadeIn.duration(180)} style={styles.countDot}>
-                  <Text style={styles.countText}>{docked.length}</Text>
+            {docked.length === 0 ? (
+              // The first thing's still in the air: nothing to count yet
+              <Animated.View key="empty" exiting={FadeOut.duration(140)} style={styles.dockEmpty}>
+                <SymbolView name="bag" size={15} weight="semibold" tintColor={SUB} />
+                <Text style={styles.dockEmptyText}>Your bag</Text>
+              </Animated.View>
+            ) : (
+              <>
+                <Animated.View key="count" entering={FadeIn.duration(220)} style={styles.dockSide}>
+                  <View style={styles.dockCount}>
+                    {/* A new count pops in each time something lands */}
+                    <Animated.View key={docked.length} entering={POP} style={styles.countDot}>
+                      <Text style={styles.countText}>{docked.length}</Text>
+                    </Animated.View>
+                    <Text style={styles.dockUnit}>{docked.length === 1 ? 'item' : 'items'}</Text>
+                  </View>
+                  <Text style={[styles.dockNote, dockFree && { color: GREEN }]} numberOfLines={1}>
+                    {dockFree ? 'Free delivery ✓' : `${short(FREE_AT - dockTotal)} to free delivery`}
+                  </Text>
                 </Animated.View>
-                <Text style={styles.dockUnit}>{docked.length === 1 ? 'item' : 'items'}</Text>
-              </View>
-              <Text style={[styles.dockNote, dockFree && { color: GREEN }]} numberOfLines={1}>
-                {dockFree ? 'Free delivery ✓' : `${short(FREE_AT - dockTotal)} to free delivery`}
-              </Text>
-            </View>
-            <View style={[styles.dockSide, styles.dockRight]}>
-              <NumericText value={formatVnd(dockTotal)} fontSize={16} color={INK} weight="bold" />
-              <View style={styles.dockCta}>
-                <Text style={styles.dockNote}>View bag</Text>
-                <SymbolView name="chevron.up" size={9} weight="bold" tintColor={SUB} />
-              </View>
-            </View>
-            <Meter progress={dockTotal / FREE_AT} style={styles.dockMeter} />
+                <Animated.View key="total" entering={FadeIn.duration(220)} style={[styles.dockSide, styles.dockRight]}>
+                  <NumericText value={formatVnd(dockTotal)} fontSize={16} color={INK} weight="bold" />
+                  <View style={styles.dockCta}>
+                    <Text style={styles.dockNote}>View bag</Text>
+                    <SymbolView name="chevron.up" size={9} weight="bold" tintColor={SUB} />
+                  </View>
+                </Animated.View>
+                <Meter progress={dockTotal / FREE_AT} style={styles.dockMeter} />
+              </>
+            )}
           </Glass>
         </Pressable>
       </Animated.View>
@@ -889,13 +960,27 @@ export default function MarketBag() {
       <Animated.View
         pointerEvents={open ? 'auto' : 'none'}
         style={[StyleSheet.absoluteFill, styles.counter, counterStyle]}>
-        <View style={[styles.cartHead, { top: insets.top + 64 }]}>
-          <Text style={styles.title}>Your bag</Text>
-          <Text style={styles.subtitle}>
-            {cart.length} {cart.length === 1 ? 'thing' : 'things'} · swipe one away to put it back
-          </Text>
-        </View>
-        {listed
+        {listed && phase === 'cart' ? (
+          <Animated.View
+            entering={FadeInDown.delay(160).duration(380).easing(Easing.out(Easing.cubic))}
+            exiting={FadeOut.duration(200)}
+            style={[styles.cartHead, { top: insets.top + 64 }]}>
+            <Text style={styles.title}>Your bag</Text>
+            <Text style={styles.subtitle}>
+              {cart.length} {cart.length === 1 ? 'thing' : 'things'} · swipe one away to put it back
+            </Text>
+          </Animated.View>
+        ) : null}
+        {phase === 'paying' && !leaving ? (
+          <Animated.View
+            entering={FadeInDown.delay(240).duration(380).easing(Easing.out(Easing.cubic))}
+            exiting={FadeOut.duration(260)}
+            style={[styles.cartHead, { top: insets.top + 64 }]}>
+            <Text style={styles.title}>Packing your order</Text>
+            <Text style={styles.subtitle}>{"Everything back in the bag, and it's on its way"}</Text>
+          </Animated.View>
+        ) : null}
+        {listed && phase === 'cart'
           ? groups.map((product, row) => (
               <LineRow
                 key={product}
@@ -911,9 +996,10 @@ export default function MarketBag() {
               />
             ))
           : null}
-        {listed ? (
+        {listed && phase === 'cart' ? (
           <Animated.View
             entering={FadeInDown.delay(120).duration(360).easing(Easing.out(Easing.cubic))}
+            exiting={FadeOutDown.duration(340).easing(Easing.in(Easing.cubic))}
             style={[styles.foot, { paddingBottom: insets.bottom + 8 }]}>
             <Glass style={styles.summary}>
               <View style={styles.sumRow}>
@@ -960,6 +1046,7 @@ export default function MarketBag() {
             </View>
           </Animated.View>
         ) : null}
+        {phase === 'done' && order ? <Success order={order} heroes={baked?.heroes ?? null} onDone={finish} /> : null}
       </Animated.View>
 
       <LateCanvas style={StyleSheet.absoluteFill}>
@@ -1028,15 +1115,14 @@ export default function MarketBag() {
         />
       ) : null}
       {floaters.map((f) => (
-        <Animated.Text
+        <Animated.View
           key={f.id}
           entering={FLOAT}
           pointerEvents="none"
-          style={[styles.floater, { top: bagBottom - BAG_H - 84 }]}>
-          {f.text}
-        </Animated.Text>
+          style={[styles.floater, { top: bagBottom - BAG_H - 92 }]}>
+          <Text style={styles.floaterText}>{f.text}</Text>
+        </Animated.View>
       ))}
-      {order ? <Receipt order={order} top={height * 0.24} /> : null}
       {baked ? null : <GPUCanvas ref={bakerRef} style={styles.baker} />}
     </View>
   );
@@ -1044,10 +1130,18 @@ export default function MarketBag() {
 
 /** A price floating up out of the bag as the thing lands in it */
 const FLOAT = new Keyframe({
-  0: { opacity: 0, transform: [{ translateY: 10 }] },
-  20: { opacity: 1, transform: [{ translateY: 0 }] },
-  100: { opacity: 0, transform: [{ translateY: -44 }] },
-}).duration(1100);
+  0: { opacity: 0, transform: [{ translateY: 14 }, { scale: 0.7 }] },
+  18: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1.06 }] },
+  30: { opacity: 1, transform: [{ translateY: -4 }, { scale: 1 }] },
+  100: { opacity: 0, transform: [{ translateY: -46 }, { scale: 0.96 }] },
+}).duration(1150);
+
+/** The dock's count, popping in as each thing lands */
+const POP = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.4 }] },
+  60: { opacity: 1, transform: [{ scale: 1.18 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }] },
+}).duration(320);
 
 /** Liquid Glass where there is any, and frosted white where there isn't */
 function Glass({
@@ -1081,8 +1175,8 @@ function Chips({ value, onChange }: { value: 'All' | Category; onChange: (c: 'Al
   const x = useSharedValue(0);
   const w = useSharedValue(0);
   const placed = useRef(false);
-  const row = useRef<View>(null);
-  const chips = useRef(new Map<string, View>());
+  const row = useRef<ViewInstance>(null);
+  const chips = useRef(new Map<string, ViewInstance>());
   useEffect(() => {
     // Each chip against the row it's in, so nothing moving round them can throw it off
     const measure = () => {
@@ -1142,9 +1236,10 @@ function Meter({ progress, style }: { progress: number; style?: StyleProp<ViewSt
     p.set(withTiming(Math.min(1, progress), { duration: 520, easing: Easing.out(Easing.cubic) }));
   }, [p, progress]);
   // A spring overshoots below nothing on its way down, and a negative width would stick
+  const full = progress >= 1;
   const fill = useAnimatedStyle(() => ({
     width: `${Math.max(0, Math.min(1, p.get())) * 100}%`,
-    backgroundColor: p.get() >= 0.999 ? GREEN : CORD,
+    backgroundColor: full ? GREEN : INK,
   }));
   return (
     <View style={[styles.meter, style]}>
@@ -1176,7 +1271,7 @@ function Card({
   world: SharedValue<World>;
   onAdd: () => void;
   onPeel: () => void;
-  artRef: (v: View | null) => void;
+  artRef: (v: ViewInstance | null) => void;
 }) {
   const p = PRODUCTS[product];
   const home = useSharedValue({ x: 0, y: 0 });
@@ -1241,7 +1336,7 @@ function Card({
           {hero && shadow ? (
             <ProductArt index={product} hero={hero} shadow={shadow} lifted={lifted} press={press} />
           ) : (
-            <View style={styles.placeholder} />
+            <Placeholder />
           )}
         </View>
       </GestureDetector>
@@ -1306,6 +1401,19 @@ function ProductArt({
       <Animated.Image source={{ uri: hero }} style={[styles.art, body]} />
     </>
   );
+}
+
+/** Where a product will stand, breathing softly while the products are rendered */
+function Placeholder() {
+  const breath = useSharedValue(0);
+  useEffect(() => {
+    breath.set(withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) }), -1, true));
+  }, [breath]);
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.35 + breath.get() * 0.45,
+    transform: [{ scale: 0.94 + breath.get() * 0.06 }],
+  }));
+  return <Animated.View style={[styles.placeholder, style]} />;
 }
 
 /** Dark glass + that turns as it's pressed */
@@ -1399,6 +1507,7 @@ function LineRow({
   return (
     <Animated.View
       entering={FadeInDown.delay(delay).duration(320).easing(Easing.out(Easing.cubic))}
+      exiting={FadeOut.duration(220)}
       layout={LinearTransition.duration(280).easing(Easing.out(Easing.cubic))}
       style={[styles.rowWrap, { top, height }]}>
       <Animated.View style={[styles.bin, bin]}>
@@ -1435,93 +1544,6 @@ function LineRow({
           </Glass>
         </Animated.View>
       </GestureDetector>
-    </Animated.View>
-  );
-}
-
-/**
- * Hold to pay: it fills as you hold, ticking faster and faster under your thumb, and a glint runs
- * across it every so often while it waits
- */
-function HoldToPay({ amount, onDone }: { amount: number; onDone: () => void }) {
-  const fill = useSharedValue(0);
-  const press = useSharedValue(0);
-  const shine = useSharedValue(0);
-  useEffect(() => {
-    shine.set(
-      withRepeat(
-        withSequence(
-          withDelay(1400, withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) })),
-          withTiming(0, { duration: 0 })
-        ),
-        -1
-      )
-    );
-  }, [shine]);
-  // A tick under the thumb at each step of the fill; it eases in, so they come faster and faster
-  useAnimatedReaction(
-    () => Math.floor(fill.get() * 16),
-    (n, was) => {
-      if (was !== null && n > was && n < 16) Presets.System.impactLight();
-    }
-  );
-  const gesture = Gesture.LongPress()
-    .minDuration(900)
-    .onBegin(() => {
-      press.set(withTiming(1, { duration: 120 }));
-      fill.set(withTiming(1, { duration: 900, easing: Easing.in(Easing.quad) }));
-    })
-    .onStart(() => {
-      scheduleOnRN(onDone);
-    })
-    .onFinalize((_e, ok) => {
-      press.set(withTiming(0, { duration: 200 }));
-      if (!ok) fill.set(withTiming(0, { duration: 220 }));
-    });
-  const body = useAnimatedStyle(() => ({ transform: [{ scale: 1 - press.get() * 0.035 }] }));
-  const bar = useAnimatedStyle(() => ({ width: `${fill.get() * 100}%` }));
-  const glint = useAnimatedStyle(() => ({
-    transform: [{ translateX: -120 + shine.get() * 420 }, { skewX: '-20deg' }],
-  }));
-  return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.pay, body]} accessibilityRole="button" accessibilityLabel="Hold to pay">
-        <Animated.View style={[styles.payFill, bar]}>
-          <View style={styles.payEdge} />
-        </Animated.View>
-        <Animated.View pointerEvents="none" style={[styles.payGlint, glint]} />
-        <SymbolView name="lock.fill" size={14} tintColor="#FFFFFF" />
-        <Text style={styles.payText}>Hold to pay</Text>
-        <NumericText value={formatVnd(amount)} fontSize={16} color="rgba(255,255,255,0.7)" weight="semibold" />
-      </Animated.View>
-    </GestureDetector>
-  );
-}
-
-function Receipt({ order, top }: { order: Order; top: number }) {
-  return (
-    <Animated.View
-      entering={FadeInDown.duration(360).easing(Easing.out(Easing.cubic))}
-      exiting={FadeOut.duration(240)}
-      pointerEvents="none"
-      style={[styles.receiptWrap, { top }]}>
-      <Glass tint="rgba(255,255,255,0.55)" style={styles.receipt}>
-        <SymbolView
-          name="checkmark.circle.fill"
-          size={48}
-          tintColor={GREEN}
-          animationSpec={{ effect: { type: 'bounce' } }}
-        />
-        <Text style={styles.receiptTitle}>Order placed</Text>
-        <Text style={styles.receiptSub}>{order.id} · arriving tomorrow, 9–12h</Text>
-        <View style={[styles.hair, styles.receiptHair]} />
-        <View style={[styles.sumRow, styles.receiptRow]}>
-          <Text style={styles.sumLabel}>
-            {order.items} {order.items === 1 ? 'item' : 'items'}
-          </Text>
-          <Text style={styles.receiptAmount}>{formatVnd(order.total)}</Text>
-        </View>
-      </Glass>
     </Animated.View>
   );
 }
@@ -1694,9 +1716,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 200,
+    height: 310,
     experimental_backgroundImage:
-      'linear-gradient(180deg, rgba(244,241,234,0) 0%, rgba(244,241,234,0.85) 60%, rgba(244,241,234,1) 100%)',
+      'linear-gradient(180deg, rgba(244,241,234,0) 0%, rgba(244,241,234,0.88) 36%, rgba(244,241,234,1) 60%)',
   },
   dockWrap: {
     position: 'absolute',
@@ -1781,12 +1803,30 @@ const styles = StyleSheet.create({
   floater: {
     position: 'absolute',
     alignSelf: 'center',
-    fontSize: 15,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: INK,
+    boxShadow: '0 6px 16px -6px rgba(23,23,27,0.45)',
+  },
+  floaterText: {
+    fontSize: 13,
     fontWeight: '800',
-    color: CORD,
+    color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
-    textShadowColor: 'rgba(255,255,255,0.9)',
-    textShadowRadius: 6,
+  },
+  dockEmpty: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  dockEmptyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: SUB,
   },
   counter: {
     backgroundColor: BG,
@@ -1918,83 +1958,5 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pay: {
-    flex: 1,
-    height: 58,
-    borderRadius: 29,
-    borderCurve: 'continuous',
-    backgroundColor: INK,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  payFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: CORD,
-  },
-  payEdge: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 26,
-    experimental_backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 100%)',
-  },
-  payGlint: {
-    position: 'absolute',
-    left: 0,
-    top: -10,
-    bottom: -10,
-    width: 60,
-    experimental_backgroundImage:
-      'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.16) 50%, rgba(255,255,255,0) 100%)',
-  },
-  payText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  receiptWrap: {
-    position: 'absolute',
-    left: 28,
-    right: 28,
-  },
-  receipt: {
-    borderRadius: 30,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 22,
-    gap: 6,
-  },
-  receiptTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: INK,
-    letterSpacing: -0.5,
-    marginTop: 6,
-  },
-  receiptSub: {
-    fontSize: 14,
-    color: SUB,
-  },
-  receiptHair: {
-    alignSelf: 'stretch',
-    marginVertical: 10,
-  },
-  receiptRow: {
-    alignSelf: 'stretch',
-  },
-  receiptAmount: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: INK,
-    fontVariant: ['tabular-nums'],
   },
 });
