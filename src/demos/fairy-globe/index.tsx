@@ -1,106 +1,129 @@
-import { MountainsofChristmas_700Bold, useFonts } from '@expo-google-fonts/mountains-of-christmas';
-import { GlassView } from 'expo-glass-effect';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { Accelerometer } from 'expo-sensors';
 import { StatusBar } from 'expo-status-bar';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { PixelRatio, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { PixelRatio, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
+  Easing,
   FadeIn,
+  FadeInDown,
   FadeOut,
-  ZoomIn,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Canvas, type CanvasRef } from 'react-native-webgpu';
 
-import { NumericText } from '@/components/numeric-text';
 import { useSound } from '@/hooks/use-sound';
 
-import { createFairyGlobe, type FairyGlobe, type GlobeHaptic, type Leg, type Stage } from './scene';
-import { STOPS } from './world';
+import { createSnowGlobe, type Chapter, type GlobeHaptic, type SnowGlobe, type Stage } from './scene';
+import { useMusicBox } from './music';
 
 /**
- * Fairy Globe: Christmas Eve on a storybook globe. Santa races midnight round the world from his
- * village under the northern lights; tap a sparkle to send him there and go down to the rooftops.
+ * Snow Globe: a snow globe on a music box, in a dark room at Christmas, Rothenburg inside it in
+ * the snow. Shake the phone to make it snow, turn the globe to play the music box, tap the glass to
+ * go in after Santa.
  */
 
-const STORY = 'MountainsofChristmas_700Bold';
-const CREAM = '#FFF6E6';
-const GOLD = '#FFD873';
+const CREAM = '#FFF4E2';
+const GOLD = '#FFD58A';
+const SCRIPT = Platform.select({ ios: 'Snell Roundhand', default: 'serif' });
+const SERIF = Platform.select({ ios: 'Baskerville', default: 'serif' });
+const SERIF_ITALIC = Platform.select({ ios: 'Baskerville-Italic', default: 'serif' });
+const GLASS = isLiquidGlassAvailable();
 
 const HAPTICS: Record<GlobeHaptic, () => void> = {
-  takeoff: () => Presets.propel(),
+  shake: () => Presets.wobble(),
+  note: () => Presets.System.selection(),
+  enter: () => Presets.propel(),
+  land: () => Presets.thud(),
   deliver: () => Presets.System.notificationSuccess(),
-  select: () => Presets.System.selection(),
   home: () => Presets.swell(),
+  throw: () => Presets.System.impactLight(),
 };
 
-const STATUS: Record<Leg['phase'], string> = {
-  flying: 'Next stop',
-  delivering: 'Down the chimney',
-  home: 'Back at the North',
-  visiting: 'Down the chimney',
+const CHAPTERS: Record<Exclude<Chapter, null>, string> = {
+  glass: 'Into the snow globe',
+  chimney: 'Down the chimney',
+  morning: 'Asleep under the tree',
+  home: 'Merry Christmas',
 };
+
+type Hint = 'shake' | 'turn' | 'tap';
+const HINTS: { id: Hint; label: string; symbol: SymbolViewProps['name'] }[] = [
+  { id: 'shake', label: 'Shake', symbol: 'iphone.radiowaves.left.and.right' },
+  { id: 'turn', label: 'Turn', symbol: 'arrow.left.and.right' },
+  { id: 'tap', label: 'Step inside', symbol: 'hand.tap' },
+];
 
 export default function FairyGlobeDemo() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const canvasRef = useRef<CanvasRef>(null);
-  const [scene, setScene] = useState<FairyGlobe | null>(null);
-  const [leg, setLeg] = useState<Leg | null>(null);
-  const [gifts, setGifts] = useState(0);
-  const [delivered, setDelivered] = useState(0);
-  const [hint, setHint] = useState(true);
-  const [stage, setStage] = useState<Stage>('globe');
-  const [hoho, setHoho] = useState<{ x: number; y: number; key: number } | null>(null);
-  const [fonts] = useFonts({ MountainsofChristmas_700Bold });
+  const [scene, setScene] = useState<SnowGlobe | null>(null);
+  const [stage, setStage] = useState<Stage>('shelf');
+  const [chapter, setChapter] = useState<Chapter>(null);
+  const [done, setDone] = useState<Record<Hint, boolean>>({ shake: false, turn: false, tap: false });
+  const [loaded, setLoaded] = useState(false);
   const curtain = useSharedValue(1);
-  // All made from scratch (scripts/fairy_globe_sounds.py)
-  const laugh = useSound(require('../../../assets/fairy-globe/hohoho.wav'));
-  const jingle = useSound(require('../../../assets/fairy-globe/bells.wav'));
+  // Made from scratch (scripts/fairy_globe_sounds.py, scripts/snow_globe_sounds.py)
   const whoosh = useSound(require('../../../assets/fairy-globe/whoosh.wav'));
   const crackle = useSound(require('../../../assets/fairy-globe/crackle.wav'));
   const eep = useSound(require('../../../assets/fairy-globe/eep.wav'));
   const twinkle = useSound(require('../../../assets/fairy-globe/twinkle.wav'));
+  const bells = useSound(require('../../../assets/fairy-globe/bells.wav'));
+  const hohoho = useSound(require('../../../assets/fairy-globe/hohoho.wav'));
+  const shimmer = useSound(require('../../../assets/fairy-globe/shimmer.wav'));
+  const music = useMusicBox();
   // The players live as long as the screen does: the scene can hold on to these
-  const sounds = useRef({ laugh, jingle, whoosh, crackle, eep, twinkle });
+  const sounds = useRef({ whoosh, crackle, eep, twinkle, bells, hohoho, shimmer, music });
+  const lastTick = useRef(0);
+
+  const mark = (h: Hint) => setDone((d) => (d[h] ? d : { ...d, [h]: true }));
 
   useEffect(() => {
-    let live: FairyGlobe | null = null;
+    let live: SnowGlobe | null = null;
     let cancelled = false;
     (async () => {
       const adapter = await navigator.gpu.requestAdapter();
       const device = await adapter?.requestDevice();
       const context = canvasRef.current?.getContext('webgpu');
       if (cancelled || !device || !context) return;
-      const canvas = context.canvas as unknown as { width: number; height: number; clientWidth: number; clientHeight: number };
+      const canvas = context.canvas as unknown as {
+        width: number;
+        height: number;
+        clientWidth: number;
+        clientHeight: number;
+      };
       const ratio = Math.min(PixelRatio.get(), 2.5);
       canvas.width = canvas.clientWidth * ratio;
       canvas.height = canvas.clientHeight * ratio;
-      live = createFairyGlobe(context, device, {
-        onLeg: setLeg,
-        onGifts: (n, d) => {
-          setGifts(n);
-          setDelivered(d);
-        },
-        onHaptic: (kind) => {
-          HAPTICS[kind]();
-          // Bells as the team sets off
-          if (kind === 'takeoff') sounds.current.jingle();
-        },
+      live = createSnowGlobe(context, device, {
         onStage: setStage,
-        onHoHo: (x, y) => {
-          setHoho({ x, y, key: Date.now() });
-          sounds.current.laugh();
-        },
+        onChapter: setChapter,
+        onHaptic: (kind) => HAPTICS[kind](),
         onCue: (cue) => sounds.current[cue](),
+        onNote: (pitch, bass) => {
+          sounds.current.music(pitch, bass);
+          // A tick under the thumb with the tune, but no faster than a fingertip can feel
+          const now = Date.now();
+          if (!bass && now - lastTick.current > 70) {
+            lastTick.current = now;
+            Presets.System.selection();
+          }
+        },
       });
-      live.onFirstFrame(() => (curtain.value = withTiming(0, { duration: 1200 })));
-      // Dev builds expose the scene for QA: fairyGlobe.debug()
-      if (__DEV__) (globalThis as { fairyGlobe?: FairyGlobe }).fairyGlobe = live;
+      live.onFirstFrame(() => {
+        curtain.value = withTiming(0, { duration: 1400, easing: Easing.out(Easing.cubic) });
+        setLoaded(true);
+      });
+      // Dev builds expose the scene for QA: snowGlobe.debug(), snowGlobe.shake(1), snowGlobe.dive()
+      if (__DEV__) (globalThis as { snowGlobe?: SnowGlobe }).snowGlobe = live;
       setScene(live);
     })();
     return () => {
@@ -109,125 +132,164 @@ export default function FairyGlobeDemo() {
     };
   }, [curtain]);
 
-  useEffect(() => {
-    if (!hoho) return;
-    const id = setTimeout(() => setHoho(null), 2400);
-    return () => clearTimeout(id);
-  }, [hoho]);
-
-  useEffect(() => {
-    if (!hint) return;
-    const id = setTimeout(() => setHint(false), 9000);
-    return () => clearTimeout(id);
-  }, [hint]);
-
-  const pan = Gesture.Pan()
-    .runOnJS(true)
-    .minDistance(6)
-    .onChange((e) => scene?.panBy(e.changeX, e.changeY))
-    .onEnd((e) => scene?.release(e.velocityX, e.velocityY))
-    .onFinalize(() => scene?.release(0, 0));
-  const tap = Gesture.Tap()
-    .runOnJS(true)
-    .onEnd((e) => {
-      if (scene?.tap(e.x, e.y)) setHint(false);
-    });
-
   // Folding or unfolding the phone changes the screen under the scene
   useEffect(() => {
     scene?.resize(width, height, Math.min(PixelRatio.get(), 2.5));
   }, [scene, width, height]);
 
+  // The phone's motion: its tilt leans the camera and drifts the snow; a shake makes it snow
+  useEffect(() => {
+    if (!scene) return;
+    Accelerometer.setUpdateInterval(16);
+    const g = { x: 0, y: -1, z: 0 };
+    let lastShake = 0;
+    const sub = Accelerometer.addListener((a) => {
+      g.x += (a.x - g.x) * 0.12;
+      g.y += (a.y - g.y) * 0.12;
+      g.z += (a.z - g.z) * 0.12;
+      scene.motion(g.x, g.y, g.z);
+      const jolt = Math.hypot(a.x - g.x, a.y - g.y, a.z - g.z);
+      const now = Date.now();
+      if (jolt > 0.85 && now - lastShake > 450) {
+        lastShake = now;
+        scene.shake(Math.min(1.5, jolt * 0.75));
+        mark('shake');
+      }
+    });
+    return () => sub.remove();
+  }, [scene]);
+
+  // Turn the globe sideways; a quick flick up or down shakes it
+  const turn = Gesture.Pan()
+    .runOnJS(true)
+    .minDistance(4)
+    .onChange((e) => {
+      if (!scene || Math.abs(e.translationY) > Math.abs(e.translationX) * 1.4) return;
+      scene.turnBy(e.changeX * 0.012);
+    })
+    .onEnd((e) => {
+      if (!scene) return;
+      if (Math.abs(e.velocityY) > 700 && Math.abs(e.translationY) > Math.abs(e.translationX) * 1.4) {
+        scene.letGo(0);
+        scene.shake(Math.min(1.4, Math.abs(e.velocityY) / 1800));
+        mark('shake');
+        return;
+      }
+      scene.letGo(e.velocityX * 0.012);
+      if (Math.abs(e.translationX) > 30) mark('turn');
+    })
+    .onFinalize(() => scene?.letGo(0));
+  const tap = Gesture.Tap()
+    .runOnJS(true)
+    .onEnd((e) => {
+      if (scene?.tap(e.x, e.y)) mark('tap');
+    });
+
   const curtainStyle = useAnimatedStyle(() => ({ opacity: curtain.value }));
-  const story = fonts ? styles.story : null;
-  // Open on a folding phone the screen is wide: the words go to the corners, the globe has the middle
-  const wide = width > height;
+  const onShelf = stage === 'shelf' && chapter !== 'home';
+  const allDone = done.shake && done.turn && done.tap;
 
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <GestureDetector gesture={Gesture.Exclusive(pan, tap)}>
+      <GestureDetector gesture={Gesture.Exclusive(turn, tap)}>
         <View style={StyleSheet.absoluteFill}>
           <Canvas ref={canvasRef} style={StyleSheet.absoluteFill} />
         </View>
       </GestureDetector>
 
-      <View
-        pointerEvents="none"
-        style={[
-          styles.head,
-          wide && styles.headWide,
-          { top: insets.top + 6, opacity: stage === 'globe' ? 1 : 0 },
-          wide && { left: insets.left + 28 },
-        ]}>
-        <Text style={[styles.title, story]}>Christmas Eve</Text>
-        <Text style={[styles.subtitle, story]}>Santa is racing midnight round the world</Text>
-      </View>
-
-      {hint && stage === 'globe' && leg?.phase === 'flying' && !STOPS[leg.stop]?.hero ? (
-        <Animated.Text
-          entering={FadeIn.duration(500)}
-          exiting={FadeOut.duration(300)}
-          pointerEvents="none"
-          style={[
-            styles.hint,
-            story,
-            wide
-              ? { left: insets.left + 28, right: undefined, bottom: Math.max(insets.bottom, 12) + 30, textAlign: 'left' }
-              : { top: height * 0.5 + width * 0.52 },
-          ]}>
-          Tap a sparkle to send him there
-        </Animated.Text>
-      ) : null}
-
-      <View
-        pointerEvents="none"
-        style={[
-          styles.foot,
-          wide && styles.footWide,
-          { paddingBottom: Math.max(insets.bottom, 12) + 4, opacity: stage === 'globe' ? 1 : 0 },
-          wide && { paddingRight: insets.right + 24 },
-        ]}>
-        <GlassView glassEffectStyle="regular" tintColor="rgba(20,16,60,0.35)" style={styles.card}>
-          <View style={styles.cardLeft}>
-            <Text style={styles.label}>{leg ? STATUS[leg.phase].toUpperCase() : ' '}</Text>
-            {leg ? (
-              <Animated.View key={`${leg.name}-${leg.phase}`} entering={FadeIn.duration(400)}>
-                <Text style={[styles.place, story]} numberOfLines={1}>
-                  {leg.name}
-                </Text>
-                <Text style={styles.note} numberOfLines={1}>
-                  {leg.note}
-                </Text>
-              </Animated.View>
-            ) : null}
-          </View>
-          <View style={styles.cardRight}>
-            <Text style={styles.label}>PRESENTS</Text>
-            <NumericText value={gifts.toLocaleString('en-US')} fontSize={22} color={GOLD} weight="bold" />
-            <Text style={styles.note}>{delivered} of {STOPS.length} towns</Text>
-          </View>
-        </GlassView>
-      </View>
-
-      {hoho ? (
+      {/* The title, quietly, over the room */}
+      {onShelf ? (
         <Animated.View
-          key={hoho.key}
-          entering={ZoomIn.springify().damping(9).stiffness(160)}
+          entering={FadeIn.delay(loaded ? 0 : 900).duration(900)}
           exiting={FadeOut.duration(500)}
           pointerEvents="none"
-          style={[
-            styles.hohoBox,
-            {
-              left: Math.min(width - 300, Math.max(16, hoho.x - 150)),
-              top: Math.min(height - 120, Math.max(insets.top + 8, hoho.y - 150)),
-            },
-          ]}>
-          <Text style={[styles.hoho, story]}>Ho ho ho!</Text>
+          style={[styles.head, { top: insets.top + 18 }]}>
+          <Text style={styles.kicker}>ROTHENBURG · 24 DECEMBER</Text>
+          <Text style={styles.title}>Silent Night</Text>
         </Animated.View>
       ) : null}
 
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.curtain, curtainStyle]} />
+      {/* How to play with it: three quiet hints, each lighting up once it's been done */}
+      {onShelf && loaded && !allDone ? (
+        <Animated.View
+          entering={FadeInDown.delay(1600).duration(700).easing(Easing.out(Easing.cubic))}
+          exiting={FadeOut.duration(400)}
+          pointerEvents="none"
+          style={[styles.hints, { bottom: insets.bottom + 18 }]}>
+          {HINTS.map((h) => (
+            <HintChip key={h.id} label={h.label} symbol={h.symbol} on={done[h.id]} />
+          ))}
+        </Animated.View>
+      ) : null}
+
+      {/* Where you are, on the way in and out */}
+      {chapter ? (
+        <Animated.View
+          key={chapter}
+          entering={FadeIn.duration(900)}
+          exiting={FadeOut.duration(700)}
+          pointerEvents="none"
+          style={[styles.chapter, chapter === 'home' ? { top: insets.top + 40 } : { bottom: insets.bottom + 40 }]}>
+          {chapter === 'home' ? (
+            <Text style={styles.merry}>{CHAPTERS.home}</Text>
+          ) : (
+            <Text style={styles.caption}>{CHAPTERS[chapter]}</Text>
+          )}
+        </Animated.View>
+      ) : null}
+      <ChapterTimer chapter={chapter} onDone={() => setChapter(null)} />
+
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.curtain, curtainStyle]}>
+        {!loaded ? <Loading /> : null}
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Captions stay a few seconds, "Merry Christmas" a little longer */
+function ChapterTimer({ chapter, onDone }: { chapter: Chapter; onDone: () => void }) {
+  useEffect(() => {
+    if (!chapter) return;
+    const id = setTimeout(onDone, chapter === 'home' ? 5200 : 3400);
+    return () => clearTimeout(id);
+  }, [chapter, onDone]);
+  return null;
+}
+
+function HintChip({ label, symbol, on }: { label: string; symbol: SymbolViewProps['name']; on: boolean }) {
+  return (
+    <GlassView
+      glassEffectStyle="clear"
+      tintColor="rgba(30,18,12,0.35)"
+      style={[styles.chip, !GLASS && styles.chipFrost]}>
+      <SymbolView
+        name={on ? 'checkmark' : symbol}
+        size={13}
+        weight="semibold"
+        tintColor={on ? GOLD : 'rgba(255,244,226,0.85)'}
+      />
+      <Text style={[styles.chipText, on && { color: GOLD }]}>{label}</Text>
+    </GlassView>
+  );
+}
+
+/** While the town's being built: a snowflake, breathing */
+function Loading() {
+  const breath = useSharedValue(0);
+  useEffect(() => {
+    breath.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, [breath]);
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.35 + breath.value * 0.5,
+    transform: [{ scale: 0.92 + breath.value * 0.1 }],
+  }));
+  return (
+    <View style={styles.loading}>
+      <Animated.View style={style}>
+        <SymbolView name="snowflake" size={30} weight="light" tintColor={CREAM} />
+      </Animated.View>
+      <Text style={styles.loadingText}>Building the town under the glass</Text>
     </View>
   );
 }
@@ -235,102 +297,89 @@ export default function FairyGlobeDemo() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A0F2E',
+    backgroundColor: '#0D0809',
   },
   curtain: {
-    backgroundColor: '#0A0F2E',
+    backgroundColor: '#0D0809',
   },
-  story: {
-    fontFamily: STORY,
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+  },
+  loadingText: {
+    fontFamily: SERIF_ITALIC,
+    fontSize: 15,
+    color: 'rgba(255,244,226,0.6)',
   },
   head: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 24,
+    right: 24,
     alignItems: 'center',
   },
-  headWide: {
-    right: undefined,
-    alignItems: 'flex-start',
-  },
-  footWide: {
-    alignItems: 'flex-end',
+  kicker: {
+    fontFamily: SERIF,
+    fontSize: 11,
+    letterSpacing: 3.2,
+    color: 'rgba(255,244,226,0.6)',
   },
   title: {
-    fontSize: 44,
+    fontFamily: SCRIPT,
+    fontSize: 46,
     color: CREAM,
-    textShadowColor: 'rgba(255,200,120,0.55)',
-    textShadowRadius: 14,
+    marginTop: 2,
+    textShadowColor: 'rgba(255,190,110,0.5)',
+    textShadowRadius: 16,
     textShadowOffset: { width: 0, height: 0 },
   },
-  subtitle: {
-    marginTop: -4,
-    fontSize: 18,
-    color: 'rgba(255,246,230,0.82)',
-    textAlign: 'center',
-  },
-  hohoBox: {
-    position: 'absolute',
-    width: 300,
-  },
-  hoho: {
-    textAlign: 'center',
-    fontSize: 56,
-    color: '#FFF3DA',
-    transform: [{ rotate: '-8deg' }],
-    textShadowColor: 'rgba(255,90,70,0.9)',
-    textShadowRadius: 18,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  hint: {
+  hints: {
     position: 'absolute',
     left: 0,
     right: 0,
-    textAlign: 'center',
-    fontSize: 20,
-    color: GOLD,
-    textShadowColor: 'rgba(255,200,90,0.6)',
-    textShadowRadius: 10,
-    textShadowOffset: { width: 0, height: 0 },
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
-  foot: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  card: {
-    width: 380,
-    maxWidth: '100%',
-    borderRadius: 26,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 13,
+    borderRadius: 17,
   },
-  cardLeft: {
-    flex: 1,
+  chipFrost: {
+    backgroundColor: 'rgba(30,18,12,0.55)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,244,226,0.18)',
   },
-  cardRight: {
-    alignItems: 'flex-end',
+  chipText: {
+    fontFamily: SERIF,
+    fontSize: 14,
+    color: 'rgba(255,244,226,0.9)',
   },
-  label: {
-    fontSize: 11,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-    color: 'rgba(255,246,230,0.6)',
+  chapter: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    alignItems: 'center',
   },
-  place: {
-    fontSize: 28,
+  caption: {
+    fontFamily: SERIF_ITALIC,
+    fontSize: 19,
     color: CREAM,
-    marginTop: -2,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 10,
+    textShadowOffset: { width: 0, height: 1 },
   },
-  note: {
-    fontSize: 13,
-    color: 'rgba(255,246,230,0.75)',
-    marginTop: 1,
+  merry: {
+    fontFamily: SCRIPT,
+    fontSize: 52,
+    color: CREAM,
+    textShadowColor: 'rgba(255,190,110,0.6)',
+    textShadowRadius: 18,
+    textShadowOffset: { width: 0, height: 0 },
   },
 });

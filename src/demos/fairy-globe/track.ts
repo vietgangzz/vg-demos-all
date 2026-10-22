@@ -105,6 +105,24 @@ export class PacedCurve {
     const e = f * f * (3 - 2 * f);
     return this.speeds[i] + (this.speeds[i + 1] - this.speeds[i]) * e;
   }
+  /** Time along it at curve parameter u (the inverse of uAt) */
+  tAt(u: number) {
+    if (u <= 0) return 0;
+    if (u >= 1) return this.duration;
+    let lo = 0;
+    let hi = this.us.length - 1;
+    while (hi - lo > 1) {
+      const m = (lo + hi) >> 1;
+      if (this.us[m] < u) lo = m;
+      else hi = m;
+    }
+    const f = (u - this.us[lo]) / (this.us[hi] - this.us[lo]);
+    return this.ts[lo] + (this.ts[hi] - this.ts[lo]) * f;
+  }
+  /** When it passes its i'th point */
+  tAtPoint(i: number) {
+    return this.tAt(i / (this.curve.points.length - 1));
+  }
   /** Curve parameter at time t along it */
   uAt(t: number) {
     if (t <= 0) return 0;

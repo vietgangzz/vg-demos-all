@@ -6,15 +6,15 @@ import { dust, sprites } from './fx';
 import type { Team } from './sleigh';
 
 /**
- * Rothenburg on Christmas Eve (scripts/blender/xmas_town.py), built life-size and set into the
- * globe: the walled town, its square and market, the red house the room is in. Baked in four
- * parts, the detail going where you see it close (the red house; round the square; the rest of
- * the town; the wall and the fields).
+ * Rothenburg on Christmas Eve (scripts/blender/xmas_town.py), built life-size and set under the
+ * glass of the snow globe: the walled town, its square and market, the red house the room is in.
+ * Baked in four parts, the detail going where you see it close (the red house; round the square;
+ * the rest of the town; the wall and the fields), the fields cut round to fit the glass.
  *
  * And everything that moves in it: snow falling round you, the chimneys smoking, the lanterns and
  * the star glowing, powder kicked up and snow sliding off the roof when the sleigh comes down.
  *
- * All in the town's metres, y up; `root` carries it onto the globe.
+ * All in the town's metres, y up; `root` carries it into the globe.
  */
 
 const { vec3 } = TSL;
@@ -42,8 +42,8 @@ export type TownStage = NonNullable<Awaited<ReturnType<typeof buildTown>>>;
 
 type Powder = { at: THREE.Vector3; v: THREE.Vector3; born: number; life: number; size: number; grow: number; c: THREE.Color; g: number };
 
-/** `radius`: the globe's, in the town's metres, so the town bends with it */
-export async function buildTown(radius: number) {
+/** `disc`: the circle of ground that fits under the glass (its middle and radius, in metres) */
+export async function buildTown(disc: { x: number; z: number; r: number }) {
   const data = require('../../../assets/fairy-globe/town/town.json') as TownData;
   // Bright and warm, the way a Christmas film lights a town at night
   const exposure = TSL.uniform(1.1);
@@ -53,7 +53,7 @@ export async function buildTown(radius: number) {
   const gains = { base: TSL.uniform(1), tree: twinkle };
   // Out in the fields there's no lamplight: lift it a little so the woods read
   const fields = TSL.uniform(2.0);
-  const part = (name: keyof typeof ASSETS, edge?: { r: number; behind: number }) =>
+  const part = (name: keyof typeof ASSETS, round = false) =>
     bakedMesh(
       data[name],
       {
@@ -64,26 +64,21 @@ export async function buildTown(radius: number) {
       gains,
       name === 'outer' ? fields : exposure,
       3.2,
-      { screen: true, radius, edge, ambient }
+      { screen: true, ambient, disc: round ? disc : undefined }
     );
   const [hero, core, town, outer, deco] = await Promise.all([
     part('hero'),
     part('core'),
     part('town'),
-    part('outer', { r: 146, behind: 1e6 }),
+    part('outer', true),
     // The garlands, wreaths, stars and strings of lights, in maps of their own
     part('deco'),
   ]);
   if (!hero || !core || !town || !outer || !deco) return null;
 
-  /** Down with the ground, away from the middle */
-  const bendY = (v: THREE.Vector3) => {
-    v.y -= (v.x * v.x + v.z * v.z) / (2 * radius);
-    return v;
-  };
-  const vec = (v: V) => bendY(new THREE.Vector3(...v));
+  const vec = (v: V) => new THREE.Vector3(...v);
   const root = new THREE.Group();
-  root.add(hero, core, town, outer, deco, bulbsMesh(data.bulbs, 0.08, 1.7, { screen: true, radius }), starsMesh(data.stars, { screen: true, radius }));
+  root.add(hero, core, town, outer, deco, bulbsMesh(data.bulbs, 0.08, 1.7, { screen: true }), starsMesh(data.stars, { screen: true }));
 
   // ---- The present, while it's in the air on its way to the chimney ----
   const present = new THREE.Group();
@@ -244,6 +239,8 @@ export async function buildTown(radius: number) {
 
   return {
     root,
+    /** The baked parts, for what needs their shapes (where snow can lie) */
+    parts: [hero, core, town, outer] as THREE.Mesh[],
     /** The red house's own walls and roof: gone while you're in the room inside it */
     hero,
     update,

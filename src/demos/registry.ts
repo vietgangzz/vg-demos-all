@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import CornerShop from '@/demos/corner-shop';
 import FairyGlobe from '@/demos/fairy-globe';
 import Juice from '@/demos/juice';
+import Library from '@/demos/library';
 import MetroBoard from '@/demos/metro-board';
 import MetroCinematic from '@/demos/metro-cinematic';
 import MetroMorning from '@/demos/metro-morning';
@@ -41,6 +42,20 @@ export type Demo = {
  */
 export const demos: Demo[] = [
   {
+    id: 'library',
+    title: 'Library',
+    description:
+      'A music library of 10,000 songs, every screen of it real SwiftUI written in React with Expo UI. Fling through all of it while only a couple of dozen rows ever exist, search as you type, swipe a song to play it next, and open the player: the cover grows out of the mini player, sinks back when you pause, and shrinks home under your finger as you drag it down. A live meter shows the frame rate on both threads the whole time. Unfold the phone and the library opens into a sidebar and the song list side by side.',
+    vi: {
+      title: 'Thư viện nhạc',
+      description:
+        'Thư viện 10.000 bài hát, mọi màn hình đều là SwiftUI thật viết bằng React qua Expo UI. Vuốt thật nhanh qua cả thư viện mà chỉ vài chục dòng thật sự tồn tại, gõ là lọc ngay, vuốt một bài để phát tiếp theo, mở trình phát: bìa phóng ra từ mini player, lùi lại khi tạm dừng, và thu nhỏ về chỗ cũ theo ngón tay khi kéo xuống. Đồng hồ hiệu năng hiện số khung hình trên cả hai luồng suốt lúc dùng. Mở gập máy là thư viện tách thành thanh bên và danh sách bài cạnh nhau.',
+    },
+    author: 'VG Team',
+    component: Library,
+    hideClose: true,
+  },
+  {
     id: 'juice',
     title: 'Juice',
     description:
@@ -55,13 +70,13 @@ export const demos: Demo[] = [
   },
   {
     id: 'fairy-globe',
-    title: 'Fairy Globe',
+    title: 'Snow Globe',
     description:
-      'Christmas Eve on a storybook globe. Santa takes off from his village under the northern lights and races midnight round the world, from the first islands past the date line to snowy Paris and summer in Sydney, a present down every chimney still sparkling. Drag to spin the globe, tap a sparkle to send him there.',
+      'Rothenburg on Christmas Eve, under glass on a music box, Santa\'s sleigh circling over the roofs. Shake the phone and the snow goes up in a storm and settles back on the roofs; tilt it and the snow drifts; turn the globe and the music box plays Silent Night, the key turning in its side. Tap the glass and you go in: through it after the sleigh, round the tree in the square, down a chimney to a present by the fire, out of the window and back out to the shelf.',
     vi: {
-      title: 'Quả cầu cổ tích',
+      title: 'Quả cầu tuyết',
       description:
-        'Đêm Giáng sinh trên quả địa cầu như trong sách truyện. Ông già Noel cất cánh từ ngôi làng dưới cực quang, đuổi theo nửa đêm vòng quanh thế giới, từ những hòn đảo đầu tiên qua đường đổi ngày tới Paris tuyết rơi và Sydney giữa mùa hè, thả quà xuống mọi ống khói còn lấp lánh. Kéo để xoay địa cầu, chạm vào đốm sáng để gửi ông tới đó.',
+        'Rothenburg đêm Giáng sinh trong quả cầu tuyết đặt trên hộp nhạc, xe tuần lộc của ông già Noel bay vòng trên mái nhà. Lắc máy là tuyết cuộn lên như bão rồi lắng xuống phủ mái nhà; nghiêng máy là tuyết trôi theo; xoay quả cầu là hộp nhạc chơi Silent Night, chìa vặn bên hông quay theo. Chạm vào kính để bay vào trong: xuyên qua kính theo xe tuần lộc, vòng quanh cây thông giữa quảng trường, chui xuống ống khói tới món quà bên lò sưởi, bay ra cửa sổ rồi trở về kệ.',
     },
     author: 'VG Team',
     component: FairyGlobe,
@@ -109,11 +124,11 @@ export const demos: Demo[] = [
     id: 'sticker-cart',
     title: 'Market Bag',
     description:
-      'Shopping where things feel like things: 3D products lift off their cards and spin through the air into a market net bag that sags and swells with the weight. Tip the bag out and it files itself into your cart.',
+      'Shopping where things feel like things: 3D products lift off their cards and spin through the air into a market net bag that sags and swells with the weight. Tip the bag out and it files itself into your cart; hold to pay and everything hops back in, the drawstring is pulled and the bag is carried off, and a check is written out in Skia under a burst of confetti.',
     vi: {
       title: 'Túi đi chợ',
       description:
-        'Mua sắm mà món đồ có cảm giác thật: sản phẩm 3D nhấc khỏi thẻ, xoay vòng bay vào túi lưới đi chợ, túi phình và trĩu theo sức nặng. Dốc túi ra, đồ tự xếp thành giỏ hàng.',
+        'Mua sắm mà món đồ có cảm giác thật: sản phẩm 3D nhấc khỏi thẻ, xoay vòng bay vào túi lưới đi chợ, túi phình và trĩu theo sức nặng. Dốc túi ra, đồ tự xếp thành giỏ hàng; giữ để thanh toán, đồ nhảy lại vào túi, dây rút thắt lại, túi được xách đi, rồi dấu check tự vẽ bằng Skia giữa cơn mưa confetti.',
     },
     author: 'VG Team',
     component: MarketBag,

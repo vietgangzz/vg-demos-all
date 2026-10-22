@@ -1,15 +1,13 @@
+import { Image } from 'react-native';
+import { AlphaType, ColorType, Skia } from 'react-native-skia';
 import * as TSL from 'three/tsl';
 import * as THREE from 'three/webgpu';
-
-import { haze, hex, radial, shade, SNOWFIELD } from './light';
-import { decode, texture, type Field } from './world';
 
 /**
  * Scenes baked in Blender (scripts/blender/xmas_kit.py): the mesh with its lightmap UVs, its colour,
  * what glows on it, and its light in layers that can each be turned up and down while it runs.
  *
- * All colour is linear here. The room's post pass turns it into the screen's; the town, which
- * stands on the globe and is drawn with it, does it in its own materials (display()).
+ * All colour is linear here, turned into the screen's in the materials themselves (display()).
  */
 
 const { vec3, pow, uv, sin, smoothstep, time } = TSL;
@@ -29,6 +27,38 @@ export type Packed = {
 export type Lit = { p: string; n: string; c: string; i: string; wide: boolean };
 export type V = [number, number, number];
 export type BakedPart = { mesh: Packed; light: Record<string, number> };
+
+// ---- Images, decoded once ----
+
+export type Field = { w: number; h: number; data: Uint8Array };
+
+export async function decode(asset: number): Promise<Field | null> {
+  const uri = Image.resolveAssetSource(asset)!.uri;
+  const image = Skia.Image.MakeImageFromEncoded(await Skia.Data.fromURI(uri));
+  if (!image) return null;
+  const w = image.width();
+  const h = image.height();
+  const read = image.readPixels(0, 0, { width: w, height: h, colorType: ColorType.RGBA_8888, alphaType: AlphaType.Unpremul });
+  if (!(read instanceof Uint8Array)) return null;
+  return { w, h, data: read };
+}
+
+/** An image as a texture, its rows turned so v runs bottom to top */
+export function texture(field: Field, mips: boolean, wrap = true) {
+  const { w, h, data } = field;
+  const flipped = new Uint8Array(data.length);
+  const row = w * 4;
+  for (let y = 0; y < h; y++) flipped.set(data.subarray(y * row, y * row + row), (h - 1 - y) * row);
+  const t = new THREE.DataTexture(flipped, w, h, THREE.RGBAFormat);
+  t.wrapS = wrap ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = mips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+  t.generateMipmaps = mips;
+  t.anisotropy = 4;
+  t.needsUpdate = true;
+  return t;
+}
 
 export function bytes(b64: string) {
   const s = atob(b64);
@@ -158,8 +188,8 @@ export type BakedOptions = {
   screen?: boolean;
   /** Bend it onto a round world this big */
   radius?: number;
-  /** Ragged-edge it at this distance from the middle, and drop all of it behind z = -behind */
-  edge?: { r: number; behind: number };
+  /** Only what's within this circle (its middle x, z; its radius), its edge frayed a few metres */
+  disc?: { x: number; z: number; r: number };
   /** A floor under the baked light, moonlight blue: nothing goes quite black (the undersides of eaves) */
   ambient?: number | THREE.UniformNode<'float', number>;
   /** Cut away whatever's inside this column (x, z its middle; w, d its half-sizes) above y = from */
@@ -197,26 +227,16 @@ export async function bakedMesh(
   let lit = (light ?? vec3(1)) as V3;
   if (opts.ambient) lit = lit.add(vec3(0.55, 0.62, 0.9).mul(opts.ambient)) as unknown as V3;
   const c = a.mul(lit).mul(exposure).add(glowing) as unknown as V3;
-  let shown = opts.screen ? display(c) : c;
-  if (opts.edge) {
-    // Toward its edge the town's ground takes on the snow of the country round it, lit the way the
-    // globe lights it, so there's no seam where one meets the other
-    const p = TSL.positionGeometry;
-    const r = p.xz.length().add(TSL.mx_noise_float(p.xz.mul(0.09)).mul(8));
-    const up = radial();
-    const field = shade(hex(SNOWFIELD), up, up).add(haze(up, up));
-    // Only the ground itself (and what lies low on it): the farms and trees out there keep their colours
-    const low = smoothstep(4.0, 1.6, p.y);
-    shown = TSL.mix(shown, field, smoothstep(opts.edge.r - 46, opts.edge.r - 4, r).mul(low)) as unknown as V3;
-  }
+  const shown = opts.screen ? display(c) : c;
   m.colorNode = shown;
   if (opts.radius) m.positionNode = bend(opts.radius);
-  if (opts.edge) {
-    // The set's backdrop (hills and moon cut from card) goes; the ground frays out into the world's
+  if (opts.disc) {
+    // Cut round to fit under the glass, the edge frayed so it doesn't read as a circle
     const p = TSL.positionGeometry;
-    const r = p.xz.length();
+    const d = opts.disc;
+    const r = p.xz.sub(TSL.vec2(d.x, d.z)).length();
     const fray = TSL.mx_noise_float(p.xz.mul(0.22)).mul(5).add(TSL.mx_noise_float(p.xz.mul(1.3)).mul(1.2));
-    m.maskNode = r.add(fray).lessThan(opts.edge.r).and(p.z.greaterThan(-opts.edge.behind));
+    m.maskNode = r.add(fray).lessThan(d.r);
   }
   if (opts.hole) {
     const p = TSL.positionGeometry;
