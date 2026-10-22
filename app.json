@@ -47,7 +47,6 @@
           "motionPermission": "Tilt your phone and the charge inside sloshes around."
         }
       ],
-      "./plugins/with-scene-lifecycle",
       "react-native-webgpu",
       [
         "expo-build-properties",
@@ -56,7 +55,12 @@
             "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

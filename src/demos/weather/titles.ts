@@ -12,7 +12,7 @@ import * as THREE from 'three/webgpu';
 /** Load a bundled font file (a `require`d asset) as a Skia typeface */
 export async function loadTypeface(asset: number) {
   try {
-    const uri = Image.resolveAssetSource(asset).uri;
+    const uri = Image.resolveAssetSource(asset)!.uri;
     return Skia.Typeface.MakeFreeTypeFaceFromData(await Skia.Data.fromURI(uri));
   } catch {
     return null;

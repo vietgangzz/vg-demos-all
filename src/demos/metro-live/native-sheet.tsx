@@ -5,7 +5,7 @@ import {
   useReanimatedTrueSheet,
 } from '@lodev09/react-native-true-sheet/reanimated';
 import { memo, startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
   Easing,
@@ -102,7 +102,7 @@ function SheetBody({
       ? screenHeight - Math.max(topInset, SIDE_CUTOUT_HEIGHT) - bottomInset
       : undefined;
   const ref = useRef<TrueSheet>(null);
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const [query, setQuery] = useState('');
   // Typing never waits for the results list: it filters a frame later, at low priority
   const deferredQuery = useDeferredValue(query);

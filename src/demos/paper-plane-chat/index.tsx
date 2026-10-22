@@ -6,11 +6,13 @@ import {
   PixelRatio,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from 'react-native';
 import { Presets } from 'react-native-pulsar';
 import Animated, {
@@ -79,8 +81,8 @@ export default function PaperPlaneChat() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const canvasRef = useRef<CanvasRef>(null);
-  const scroll = useRef<ScrollView>(null);
-  const bubbles = useRef(new Map<number, View>());
+  const scroll = useRef<ScrollViewInstance>(null);
+  const bubbles = useRef(new Map<number, ViewInstance>());
   const nextId = useRef(10);
   const replyIndex = useRef(0);
   const [scene, setScene] = useState<ChatPlaneScene | null>(null);

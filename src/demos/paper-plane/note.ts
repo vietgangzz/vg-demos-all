@@ -27,7 +27,7 @@ export function handTypeface() {
   hand ??= (async () => {
     try {
       const asset = require('@expo-google-fonts/patrick-hand/400Regular/PatrickHand_400Regular.ttf');
-      const uri = Image.resolveAssetSource(asset).uri;
+      const uri = Image.resolveAssetSource(asset)!.uri;
       return Skia.Typeface.MakeFreeTypeFaceFromData(await Skia.Data.fromURI(uri));
     } catch {
       return null;

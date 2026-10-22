@@ -31,7 +31,7 @@ let fonts: Promise<Fonts> | null = null;
 
 async function face(asset: number) {
   try {
-    const uri = Image.resolveAssetSource(asset).uri;
+    const uri = Image.resolveAssetSource(asset)!.uri;
     return Skia.Typeface.MakeFreeTypeFaceFromData(await Skia.Data.fromURI(uri));
   } catch {
     return null;
@@ -97,7 +97,7 @@ export function loadCardboard() {
 
 async function decodeCardboard(): Promise<Cardboard> {
   const load = async (asset: number) => {
-    const uri = Image.resolveAssetSource(asset).uri;
+    const uri = Image.resolveAssetSource(asset)!.uri;
     const image = Skia.Image.MakeImageFromEncoded(await Skia.Data.fromURI(uri));
     if (!image) return null;
     const w = image.width();
