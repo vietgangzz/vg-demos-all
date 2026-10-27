@@ -18,6 +18,7 @@ import PaperPlaneChat from '@/demos/paper-plane-chat';
 import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
+import WaterDragon from '@/demos/water-dragon';
 import Weather from '@/demos/weather';
 // Kept last: imported first, Market Bag crashed on opening (a worklet failing to carry its Skia
 // buffers to the UI thread). Why the order matters isn't known yet.
@@ -41,6 +42,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'water-dragon',
+    title: 'Water Puppets',
+    description:
+      "A water puppet show on a pond at night, played sideways: a gilded dragon and a cobra in front of a village water pavilion, two dragons on its ridge facing the moon, red lanterns along its eaves, the band playing on its platform beside it, swallow-tailed flags in the five colours down both sides of the pond, a big moon coming up over the bamboo. You work the dragon the way the puppeteers do, from behind the bamboo screen: its pole sends it across the pond, its cords hold its head up, squeeze the pump for water from its mouth, press it down under the water and let it leap out. The cobra hunts it by itself and strikes; a hit knocks the other back under. Every coil that breaks the surface throws up water, every drop that falls back leaves its ring, the waves rock the lotus lamps.",
+    vi: {
+      title: 'Múa rối nước',
+      description:
+        'Một buổi múa rối nước trên mặt hồ đêm, cầm ngang máy để xem: rồng thếp vàng và rắn hổ mang trước thuỷ đình làng, lưỡng long chầu nguyệt trên nóc, đèn lồng đỏ dọc mái, phường bát âm ngồi chiếu bên cạnh, cờ đuôi nheo ngũ sắc dọc hai bên hồ, vầng trăng lớn nhô lên sau rặng tre. Bạn điều khiển rồng như nghệ nhân sau mành tre: cây sào đưa rồng đi khắp mặt hồ, các sợi dây giật để rồng ngóc đầu, bóp bơm cho rồng phun nước, ấn sào cho rồng lặn rồi thả ra để rồng phóng vọt lên. Rắn tự săn rồng và lao tới đớp; trúng đòn là con kia bị hất văng, chìm xuống nước. Mỗi khúc thân xuyên mặt nước làm nước bắn tung, mỗi giọt rơi xuống để lại một vòng sóng, và sóng làm những chiếc đèn hoa đăng bập bềnh trôi.',
+    },
+    author: 'VG Team',
+    component: WaterDragon,
+    hideClose: true,
+  },
   {
     id: 'library',
     title: 'Library',
