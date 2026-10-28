@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import CornerShop from '@/demos/corner-shop';
+import DailyDrop from '@/demos/daily-drop';
 import FairyGlobe from '@/demos/fairy-globe';
 import Juice from '@/demos/juice';
 import Library from '@/demos/library';
@@ -42,6 +43,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'daily-drop',
+    title: 'Daily Drop',
+    description:
+      "The reward at the end of a seven-day streak, as a moment. A treasure chest bound shut in chains on a dais cut with a magic circle, in a vault, a shaft of golden light falling on it. Hold anywhere and a gold key comes up over your thumb, the glass bulb in its bow filling with light; the chest strains and shakes, its chains glowing out from the padlock, the circle filling round the dais, the light running from gold through blue and violet to legendary orange the longer you hold, the key's note rising and the phone ticking quicker in your hand. Hold it to the end and the key flies to the padlock, slides in and turns with a clack: a flash, a shockwave across the screen, and in slow motion the padlock flies apart, the chains whip off, the lid is flung open and the treasure goes up in a fountain and rains down on the dais, every knock heard and felt, all of it simulated in Blender. Then the legendary egg rises out of the chest into a fan of light, its shell cracked with fire, for you to spin with a finger and then hatch: it shakes, bursts into pieces, and Ember Drake bursts out of the fire, a baby dragon hovering over the treasure, its tail alight; tap it and it breathes fire at you; the other rewards under it (or, switched to cards, three cards to turn over). Claim, and the coins fly into your wallet as the count rolls up, the drake becomes your avatar, and light pours into your level bar until it overflows: level up. Replay runs the whole burst backwards.",
+    vi: {
+      title: 'Phần thưởng mỗi ngày',
+      description:
+        'Phần thưởng sau chuỗi bảy ngày, làm thành một khoảnh khắc. Một rương báu bị xích chặt trên bệ đá khắc vòng phép, trong hầm kho báu, một luồng sáng vàng chiếu xuống. Giữ ngón tay ở bất cứ đâu là một chiếc chìa khoá vàng hiện lên trên ngón tay, bầu thuỷ tinh ở đầu chìa dần đầy ánh sáng; rương gồng lên, rung lắc, xích sáng dần ra từ ổ khoá, vòng phép sáng dần quanh bệ, màu đổi từ vàng sang xanh, tím rồi cam huyền thoại khi bạn giữ càng lâu, tiếng chìa cao dần và máy rung dồn dập trong tay. Giữ đến cùng là chìa bay vào ổ, cắm vào và xoay cạch: một chớp sáng, sóng xung kích lan khắp màn hình, rồi chậm lại như phim: ổ khoá vỡ tung, xích văng ra, nắp bật mở, kho báu phun lên rồi rơi xuống bệ, từng tiếng va chạm đều nghe và cảm thấy được, tất cả mô phỏng vật lý trong Blender. Rồi quả trứng huyền thoại bay lên khỏi rương giữa quạt tia sáng, vỏ nứt ánh lửa, để bạn lấy ngón tay xoay rồi bấm ấp nở: trứng rung lên, vỡ tung, và Ember Drake lao ra từ lửa, một chú rồng con bay lượn trên kho báu, đuôi rực lửa; chạm vào là nó phun lửa về phía bạn; các phần thưởng khác ở bên dưới (hoặc chuyển sang chế độ thẻ để lật ba lá bài). Nhận thưởng: xu bay vào ví khi con số lăn lên, rồng lửa thành avatar của bạn, và ánh sáng rót đầy thanh kinh nghiệm cho đến khi tràn: lên cấp. Xem lại thì cả vụ nổ tua ngược.',
+    },
+    author: 'VG Team',
+    component: DailyDrop,
+    hideClose: true,
+  },
   {
     id: 'water-dragon',
     title: 'Water Puppets',
