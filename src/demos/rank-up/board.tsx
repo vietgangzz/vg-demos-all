@@ -403,6 +403,7 @@ function You({
       transform: [{ translateX: mix(-120, w + 60, inOutCubic(k)) }, { skewX: '-20deg' }],
     };
   });
+  const kick = useDerivedValue(() => kickOf(clock.value));
   // Dropping onto your head, landing as the board comes back
   const crown = useAnimatedStyle(() => {
     const u = clock.value;
@@ -421,7 +422,7 @@ function You({
   });
   return (
     <Animated.View style={[styles.you, { width: w }, body]}>
-      {PASS === 'kick' ? <Leg clock={clock} width={w} /> : null}
+      {PASS === 'kick' ? <Leg kick={kick} width={w} /> : null}
       <Animated.View style={[styles.halo, halo]} />
       <View style={styles.youFill}>
         <Animated.View style={[styles.youGold, gold]} />
@@ -445,9 +446,16 @@ function You({
  * through and boots them off to the side, then ducks back in. A striped sock and a sneaker, kicking
  * one way then the other.
  */
-function Leg({ clock, width }: { clock: SharedValue<number>; width: number }) {
+export function Leg({
+  kick,
+  width,
+}: {
+  /** Which kick is under way (k, -1 for none: the leg kicks one way then the other), and how far from its hit */
+  kick: SharedValue<{ k: number; d: number }>;
+  width: number;
+}) {
   const s = useAnimatedStyle(() => {
-    const { k, d } = kickOf(clock.value);
+    const { k, d } = kick.value;
     if (k >= 0) {
       const side = k % 2 === 0 ? 1 : -1;
       const out = outBack(span(d, -0.22, 0.12), 2.2) * (1 - inOutCubic(span(d, 0.26, 0.16)));
@@ -470,7 +478,7 @@ function Leg({ clock, width }: { clock: SharedValue<number>; width: number }) {
   });
   // A burst off the toe as it connects
   const pow = useAnimatedStyle(() => {
-    const { k, d } = kickOf(clock.value);
+    const { k, d } = kick.value;
     const a = k >= 0 ? span(d, -0.01, 0.22) : 1;
     return {
       opacity: a > 0 && a < 1 ? 1 - a * a : 0,

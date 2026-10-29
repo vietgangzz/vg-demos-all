@@ -20,6 +20,7 @@ import RankUp from '@/demos/rank-up';
 import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
+import WeekWrapped from '@/demos/week-wrapped';
 import WaterDragon from '@/demos/water-dragon';
 import WeeklyGacha from '@/demos/weekly-gacha';
 import Weather from '@/demos/weather';
@@ -45,6 +46,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'week-wrapped',
+    title: 'Week Wrapped',
+    description:
+      "Your week, wrapped as a replay of Silver's board that starts at the end, all of it playing by itself. It opens on Gold: your row in gold foil wearing the crown, Gold's badge, GOLD LEAGUE, confetti in the air. Then the tape winds back: the confetti flies back down into the cannons, GOLD LEAGUE lifts away a letter at a time, the badge whirls backwards off into the distance, the board flies back up and slots together, Gold's world draws back into your row and the crown lifts off; then the whole week runs backwards, every kick undone, everyone's XP spinning down to Monday. Then it plays: a leg springing out of your row to boot each one you pass, a sticker over the scrubber for each day, Sunday in slow motion, and at 11:42 pm the last kick sends Mina flying. Everything stops dead, the crown drops back on, Gold floods out, the board falls away, Gold's badge slams down, and the week ends on one card.",
+    vi: {
+      title: 'Tổng kết tuần',
+      description:
+        'Tổng kết tuần là đoạn replay bảng xếp hạng giải Bạc bắt đầu từ cái kết, tất cả tự chạy. Mở ra là thế giới Vàng: hàng của bạn mạ vàng đội vương miện, huy hiệu Vàng, GOLD LEAGUE, pháo giấy đang bay. Rồi băng tua ngược: pháo giấy bay ngược về nòng, chữ GOLD LEAGUE bay lên từng chữ, huy hiệu xoay ngược bay vụt ra xa, cả bảng bay ngược lên lắp lại, thế giới Vàng co về hàng của bạn và vương miện bay khỏi đầu; rồi cả tuần chạy ngược thật nhanh, mọi cú đá rút lại, XP của mọi người quay về 0 sáng thứ Hai. Sau đó phát lại: một cái chân bật ra đá văng từng người bạn vượt, mỗi ngày một nhãn dán trên thanh tua, Chủ nhật quay chậm, và lúc 11:42 tối cú đá cuối hất Mina bay. Mọi thứ khựng lại, vương miện rơi lại lên đầu, Vàng tràn ra, cả bảng rơi xuống, huy hiệu Vàng đập xuống, và cả tuần gói lại trên một tấm thẻ.',
+    },
+    author: 'VG Team',
+    component: WeekWrapped,
+    hideClose: true,
+  },
   {
     id: 'weekly-gacha',
     title: 'Weekly Gacha',
