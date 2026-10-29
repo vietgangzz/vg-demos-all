@@ -26,8 +26,8 @@ import { useMusicBox } from './music';
 
 /**
  * Snow Globe: a snow globe on a music box, in a dark room at Christmas, Rothenburg inside it in
- * the snow. Shake the phone to make it snow, turn the globe to play the music box, tap the glass to
- * go in after Santa.
+ * the snow. Wind the key and the music box plays and it snows in the town; shake the phone for a
+ * snowstorm. Wind it far enough and let go, and the tune takes you in after Santa.
  */
 
 const CREAM = '#FFF4E2';
@@ -54,12 +54,13 @@ const CHAPTERS: Record<Exclude<Chapter, null>, string> = {
   home: 'Merry Christmas',
 };
 
-type Hint = 'shake' | 'turn' | 'tap';
+type Hint = 'wind' | 'shake';
 const HINTS: { id: Hint; label: string; symbol: SymbolViewProps['name'] }[] = [
+  { id: 'wind', label: 'Wind the key', symbol: 'key.fill' },
   { id: 'shake', label: 'Shake', symbol: 'iphone.radiowaves.left.and.right' },
-  { id: 'turn', label: 'Turn', symbol: 'arrow.left.and.right' },
-  { id: 'tap', label: 'Step inside', symbol: 'hand.tap' },
 ];
+/** How far a finger goes on the key for a whole turn of it, in points */
+const KEY_TURN = 200;
 
 export default function FairyGlobeDemo() {
   const insets = useSafeAreaInsets();
@@ -68,7 +69,7 @@ export default function FairyGlobeDemo() {
   const [scene, setScene] = useState<SnowGlobe | null>(null);
   const [stage, setStage] = useState<Stage>('shelf');
   const [chapter, setChapter] = useState<Chapter>(null);
-  const [done, setDone] = useState<Record<Hint, boolean>>({ shake: false, turn: false, tap: false });
+  const [done, setDone] = useState<Record<Hint, boolean>>({ wind: false, shake: false });
   const [loaded, setLoaded] = useState(false);
   const curtain = useSharedValue(1);
   // Made from scratch (scripts/fairy_globe_sounds.py, scripts/snow_globe_sounds.py)
@@ -159,16 +160,26 @@ export default function FairyGlobeDemo() {
     return () => sub.remove();
   }, [scene]);
 
-  // Turn the globe sideways; a quick flick up or down shakes it
+  // On the key, a finger winds it, round or back and forth, a click of the ratchet each quarter turn;
+  // anywhere else it turns the globe sideways, and a quick flick up or down shakes it
   const turn = Gesture.Pan()
     .runOnJS(true)
-    .minDistance(4)
+    .minDistance(2)
+    .onBegin((e) => {
+      scene?.holdKey(e.x, e.y);
+    })
     .onChange((e) => {
-      if (!scene || Math.abs(e.translationY) > Math.abs(e.translationX) * 1.4) return;
+      if (!scene) return;
+      if (scene.holdingKey()) {
+        if (scene.windKey(Math.hypot(e.changeX, e.changeY) / KEY_TURN) > 0) Presets.System.impactRigid();
+        if (scene.keyTurns() > 0.75) mark('wind');
+        return;
+      }
+      if (Math.abs(e.translationY) > Math.abs(e.translationX) * 1.4) return;
       scene.turnBy(e.changeX * 0.012);
     })
     .onEnd((e) => {
-      if (!scene) return;
+      if (!scene || scene.holdingKey()) return;
       if (Math.abs(e.velocityY) > 700 && Math.abs(e.translationY) > Math.abs(e.translationX) * 1.4) {
         scene.letGo(0);
         scene.shake(Math.min(1.4, Math.abs(e.velocityY) / 1800));
@@ -176,18 +187,19 @@ export default function FairyGlobeDemo() {
         return;
       }
       scene.letGo(e.velocityX * 0.012);
-      if (Math.abs(e.translationX) > 30) mark('turn');
     })
-    .onFinalize(() => scene?.letGo(0));
+    .onFinalize(() => {
+      if (!scene?.letGoKey()) scene?.letGo(0);
+    });
   const tap = Gesture.Tap()
     .runOnJS(true)
     .onEnd((e) => {
-      if (scene?.tap(e.x, e.y)) mark('tap');
+      scene?.tap(e.x, e.y);
     });
 
   const curtainStyle = useAnimatedStyle(() => ({ opacity: curtain.value }));
   const onShelf = stage === 'shelf' && chapter !== 'home';
-  const allDone = done.shake && done.turn && done.tap;
+  const allDone = done.wind && done.shake;
 
   return (
     <View style={styles.root}>

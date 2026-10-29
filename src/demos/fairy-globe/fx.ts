@@ -69,14 +69,17 @@ export function sprites(capacity: number, linear = false, alpha = false): Sprite
   const star = max(core.add(halo), rays.add(diag.mul(0.35)).add(core));
   const shape = mix(core.mul(1.1).add(halo), star, starness);
   const edge = float(1).sub(TSL.smoothstep(0.85, 1.0, r2.sqrt()));
+  // Right in front of the lens a sprite would be a blot across half the picture: it fades out there
+  const centre = TSL.modelWorldMatrix.mul(TSL.vec4(sa.xyz, 1)).xyz;
+  const clear = TSL.smoothstep(sa.w.mul(2), sa.w.mul(7), centre.sub(TSL.cameraPosition).length());
   if (alpha) {
     // Its colour as given, how much there is of it in the 'star' slot (0..1)
     const tint = sb.xyz as unknown as V3;
     const soft = exp(r2.mul(-3.2)).mul(edge);
     material.colorNode = linear ? display(tint) : tint;
-    material.opacityNode = TSL.saturate(soft.mul(starness.mul(1.001)));
+    material.opacityNode = TSL.saturate(soft.mul(starness.mul(1.001))).mul(clear);
   } else {
-    const c = (sb.xyz as unknown as V3).mul(shape.mul(edge)) as unknown as V3;
+    const c = (sb.xyz as unknown as V3).mul(shape.mul(edge).mul(clear)) as unknown as V3;
     material.colorNode = linear ? display(c) : c;
   }
   const mesh = new THREE.InstancedMesh(geometry, material, capacity);
@@ -105,7 +108,15 @@ export function sprites(capacity: number, linear = false, alpha = false): Sprite
 
 // ---- Stardust: particles that live a while and fade ----
 
-type Mote = { at: THREE.Vector3; vel: THREE.Vector3; born: number; life: number; size: number; colour: THREE.Color; star: number };
+type Mote = {
+  at: THREE.Vector3;
+  vel: THREE.Vector3;
+  born: number;
+  life: number;
+  size: number;
+  colour: THREE.Color;
+  star: number;
+};
 
 export type Dust = {
   emit: (at: THREE.Vector3, vel: THREE.Vector3, life: number, size: number, colour: THREE.Color, star?: number) => void;
@@ -144,7 +155,14 @@ export function dust(capacity: number): Dust {
       const twinkle = 0.75 + 0.25 * Math.sin(t * 13 + i);
       if (alpha) tmp.copy(m.colour);
       else tmp.copy(m.colour).multiplyScalar(fade * twinkle);
-      out.set(offset + i, world.copy(m.at).applyMatrix4(frame), m.size * (0.6 + 0.4 * (1 - age)), tmp, alpha ? fade * 0.8 : m.star, t * 1.5 + i);
+      out.set(
+        offset + i,
+        world.copy(m.at).applyMatrix4(frame),
+        m.size * (0.6 + 0.4 * (1 - age)),
+        tmp,
+        alpha ? fade * 0.8 : m.star,
+        t * 1.5 + i
+      );
     }
   };
   return { emit, update };

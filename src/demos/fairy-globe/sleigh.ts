@@ -1,3 +1,4 @@
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TSL from 'three/tsl';
 import * as THREE from 'three/webgpu';
 
@@ -67,6 +68,40 @@ function geometry(name: string) {
   return g;
 }
 
+/** A geometry painted one colour, of one stuff, for the toy material */
+function painted(g: THREE.BufferGeometry, colour: string, kind: number) {
+  const c = new THREE.Color(colour);
+  const n = g.attributes.position.count;
+  const rgb = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) rgb.set([c.r, c.g, c.b], i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
+  g.setAttribute('kind', new THREE.BufferAttribute(new Float32Array(n).fill(kind), 1));
+  g.deleteAttribute('uv');
+  return g;
+}
+
+let harnessGeo: THREE.BufferGeometry | null = null;
+/**
+ * A deer's collar: a red leather strap round the base of the neck, sleigh bells along it, in the
+ * deer's own frame
+ */
+function harness() {
+  if (harnessGeo) return harnessGeo;
+  const strap = painted(new THREE.TorusGeometry(0.17, 0.028, 6, 20), '#9E1F1F', LEATHER);
+  // Round the neck where it leans forward out of the chest
+  strap
+    .scale(1, 1.15, 1)
+    .rotateX(Math.PI / 2 - 0.75)
+    .translate(0, 1.13, 0.6);
+  const bells = [-0.8, -0.4, 0, 0.4, 0.8].map((a) => {
+    const b = painted(new THREE.SphereGeometry(0.038, 10, 8), '#E9B949', METAL);
+    // Hung under the strap, round the front of it
+    return b.translate(Math.sin(a) * 0.17, 1.13 - Math.cos(a) * 0.2 * 0.7, 0.6 + Math.cos(a) * 0.17 * 0.75);
+  });
+  harnessGeo = mergeGeometries([strap, ...bells], false) ?? strap;
+  return harnessGeo;
+}
+
 // What a surface is made of (fairy_globe_models.py)
 const FUR = 1;
 const FLUFF = 2;
@@ -97,10 +132,14 @@ function material() {
   const rim = pow(float(1).sub(ndv), 2.5);
   const p = TSL.positionLocal;
   // The fine surface: strands running down the fur, tufts in the fluff, the weave of felt, grain in bone
-  const strands = mx_noise_float(p.mul(vec3(240, 60, 240))).mul(0.2).add(1);
+  const strands = mx_noise_float(p.mul(vec3(240, 60, 240)))
+    .mul(0.2)
+    .add(1);
   const tufts = mx_fractal_noise_float(p.mul(80), 3, 2.0, 0.5).mul(0.24).add(1);
   const weave = mx_noise_float(p.mul(520)).mul(0.06).add(1);
-  const grain = mx_noise_float(p.mul(vec3(40, 260, 40))).mul(0.08).add(1);
+  const grain = mx_noise_float(p.mul(vec3(40, 260, 40)))
+    .mul(0.08)
+    .add(1);
   const fine = float(1)
     .add(strands.sub(1).mul(is(FUR)))
     .add(tufts.sub(1).mul(is(FLUFF)))
@@ -109,13 +148,22 @@ function material() {
   const up = radial();
   // Bone and antler warm, so the moonlight doesn't turn them grey-blue
   const tone = mix(vec3(1, 1, 1), vec3(1.1, 1.0, 0.84), is(BONE));
-  const lit = shade(albedo.mul(fine).mul(tone) as unknown as V3, n, up, 0.45).mul(1.15);
+  // A reindeer's coat: pale cream under the belly and the throat, darker along the back
+  const under = TSL.smoothstep(-0.1, -0.7, n.y).mul(is(FUR));
+  const back = TSL.smoothstep(0.55, 0.95, n.y).mul(is(FUR));
+  const coat = mix(mix(albedo, hex('#E8D2AE').mul(0.85), under.mul(0.7)), albedo.mul(0.72), back.mul(0.5));
+  const lit = shade(coat.mul(fine).mul(tone) as unknown as V3, n, up, 0.45).mul(1.15);
   // Brass looks like brass: what it mirrors goes from dark below to bright above
   const r = TSL.reflect(view.negate(), n);
   const metal = albedo.mul(saturate(dot(r, up).mul(0.5).add(0.55))).mul(1.25);
   const body = mix(lit, metal, is(METAL).mul(0.6));
   // Highlights, from high over the shoulder
-  const key = TSL.normalize(up.mul(0.8).add(light.moon as unknown as V3).add(view.mul(0.4)));
+  const key = TSL.normalize(
+    up
+      .mul(0.8)
+      .add(light.moon as unknown as V3)
+      .add(view.mul(0.4))
+  );
   const hl = saturate(dot(r, key));
   const spec = pow(hl, 26)
     .mul(is(METAL).mul(1.3))
@@ -125,10 +173,7 @@ function material() {
     .add(pow(hl, 20).mul(is(WOOD).mul(0.16)));
   const specColour = mix(vec3(1.0, 0.97, 0.9), albedo.mul(1.4).add(0.2), is(METAL));
   // The soft edge light: strongest on fluff and fur, a velvet sheen on felt, warm through skin
-  const edge = float(0.3)
-    .add(is(FLUFF).mul(0.2))
-    .add(is(FUR).mul(0.15))
-    .add(is(FELT).mul(0.1));
+  const edge = float(0.3).add(is(FLUFF).mul(0.2)).add(is(FUR).mul(0.15)).add(is(FELT).mul(0.1));
   const edgeColour = mix(hex('#FFD9A0'), hex('#FF9A80'), is(SKIN));
   m.colorNode = body.add(specColour.mul(spec)).add(edgeColour.mul(rim.mul(edge)));
   toyMat = m;
@@ -191,7 +236,8 @@ function sample(keys: Key[], u: number, out: [number, number]) {
     const p1 = k1[j];
     const p2 = k2[j];
     const p3 = k3[j];
-    out[j - 1] = 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+    out[j - 1] =
+      0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
   }
 }
 
@@ -214,10 +260,54 @@ function gallop(d: Deer, ph: number, stride: number, idle: number) {
   // The body rides highest in the leap and dips as the forelegs take it; it rocks nose-down onto
   // them and up again as the hinds drive; the head and neck swing against it to keep the eyes level
   const w = u * Math.PI * 2;
-  const rise = Math.sin(w + 1.2) * 0.045 * stride;
-  const pitch = Math.sin(w - 0.6) * 0.07 * stride;
-  d.head.rotation.x = -pitch * 1.6 + Math.sin(w + 0.4) * 0.06 * stride + idle;
-  return { rise, pitch };
+  const rise = Math.sin(w + 1.2) * 0.06 * stride;
+  const pitch = Math.sin(w - 0.6) * 0.09 * stride;
+  // Flying, the neck reaches out ahead
+  d.head.rotation.x = -pitch * 1.6 + Math.sin(w + 0.4) * 0.08 * stride + 0.1 * stride + idle;
+  return { rise, pitch, w };
+}
+
+/** A smooth wander between -1 and 1, different for every seed */
+const wander = (t: number, s: number) =>
+  (Math.sin(t * 0.71 + s * 3.1) + Math.sin(t * 1.37 + s * 5.3) * 0.6 + Math.sin(t * 0.29 + s * 1.7) * 0.4) / 2;
+/** Now and then (about every `every` seconds), a moment of it: 0, up to 1 and back */
+const onceIn = (t: number, s: number, every: number) =>
+  Math.max(0, Math.sin((t * Math.PI * 2) / every + s * 7.7)) ** 10;
+
+/**
+ * Everything a deer does besides the gallop: flying, it rolls a little with each stride and drifts
+ * on its own in the air, so the team never moves as one block; standing, it shifts its weight,
+ * breathes, looks about, paws at the roof; braced, it skids in with its forelegs out; rearing, it
+ * gathers itself to spring off.
+ */
+function live(d: Deer, pose: DeerPose, w: number) {
+  const s = d.phase;
+  const t = pose.t ?? 0;
+  const fly = pose.stride;
+  const still = 1 - fly;
+  const brace = pose.brace ?? 0;
+  const rear = pose.rear ?? 0;
+  // Looking about: a little in the air, more standing
+  d.head.rotation.y = wander(t * 0.8, s) * (0.12 + 0.3 * still);
+  d.head.rotation.z = wander(t * 0.6, s + 2) * 0.06 * still;
+  // Standing: hocks a little bent, weight on one side then the other, a hoof pawing now and then
+  const paw = onceIn(t, s, 5.5) * still * (1 - brace);
+  d.legs.forEach((leg, k) => {
+    if (leg.front) {
+      const pawing = k === Math.round(s * 3) % 2 ? paw : 0;
+      leg.upper.rotation.x += (-0.55 * pawing - 0.5 * brace - 0.7 * rear) * (1 - fly * 0.5);
+      leg.lower.rotation.x += 1.35 * pawing + 0.15 * brace + 1.7 * rear;
+    } else {
+      leg.upper.rotation.x += (0.1 * still - 0.2 * brace + 0.35 * rear) * (1 - fly * 0.5);
+      leg.lower.rotation.x += -0.16 * still - 0.3 * rear;
+    }
+  });
+  // The body: a roll with the stride and a drift of its own in the air; a sway and a breath standing
+  const roll = Math.sin(w + s) * 0.05 * fly + wander(t * 0.9, s + 4) * 0.035 * still;
+  const yaw = Math.sin(w * 0.5 + s * 1.3) * 0.045 * fly;
+  const drift = (wander(t * 1.6, s + 6) * 0.1 + wander(t * 1.1, s + 9) * 0.05) * fly;
+  const breath = Math.sin(t * 1.9 + s) * 0.008 * still;
+  return { roll, yaw, drift, breath, pitch: -0.1 * brace - 0.28 * rear };
 }
 
 /** The deer down each side of the team, nearest the sleigh first, Rudolph last */
@@ -238,6 +328,12 @@ export type DeerPose = {
   lift: number;
   /** Standing: the head's nod (radians) */
   idle: number;
+  /** Its clock, seconds, for the little things it does on its own */
+  t?: number;
+  /** Skidding in to land: forelegs out, 0 to 1 */
+  brace?: number;
+  /** Gathering itself to spring off: forelegs tucked up, nose up, 0 to 1 */
+  rear?: number;
 };
 
 export type Team = {
@@ -246,6 +342,8 @@ export type Team = {
   nose: THREE.Object3D;
   /** Under the runners, where the sparkle trail comes off */
   runners: THREE.Object3D[];
+  /** Under each deer, where a little stardust comes off its hooves */
+  hooves: THREE.Object3D[];
   /** Over the sack, where a present leaves from */
   sack: THREE.Object3D;
   /** Santa himself, so he can climb out */
@@ -268,7 +366,12 @@ export type Team = {
   /** Free team: pose each deer (in the team group's frame), then the reins follow */
   poseDeer: (k: number, pose: DeerPose) => void;
   poseSleigh: (at: THREE.Vector3, q: THREE.Quaternion, scale: number, t: number, bob: number) => void;
+  /** Santa from the hips, radians: lean forward (+), turn to his left (+), rock to his right (+); lift, model units */
+  poseSanta: (lean: number, twist: number, rock: number, lift: number) => void;
 };
+
+/** Where Santa bends, sitting: his hips */
+const HIP = new THREE.Vector3(0, 0.62, -0.2);
 
 /**
  * The team; `toy` lights them (the globe's light by default). A `free` team's group is just a
@@ -301,6 +404,7 @@ export function buildTeam(toy: THREE.Material = material(), free = false): Team 
   const joints = MODELS.deer.legs!;
   const neckAt = MODELS.deer.neck!;
   const noseAt = MODELS.deer.nose!;
+  const hooves: THREE.Object3D[] = [];
   const deer: Deer[] = TEAM.map(([x, z], i) => {
     const g = new THREE.Group();
     g.position.set(x, 0.35, z);
@@ -312,14 +416,24 @@ export function buildTeam(toy: THREE.Material = material(), free = false): Team 
     const legs = joints.map((j) => {
       const upper = new THREE.Group();
       upper.position.set(j.at[0], j.at[1], j.at[2]);
-      upper.add(new THREE.Mesh(geometry(j.front ? 'leg_fu' : 'leg_hu'), toy));
+      // A little sturdier than modelled: a toy deer's legs, not a real one's
+      const thigh = new THREE.Mesh(geometry(j.front ? 'leg_fu' : 'leg_hu'), toy);
+      thigh.scale.set(1.35, 1, 1.35);
+      upper.add(thigh);
       const lower = new THREE.Group();
       lower.position.set(j.joint[0], j.joint[1], j.joint[2]);
-      lower.add(new THREE.Mesh(geometry(j.front ? 'leg_fl' : 'leg_hl'), toy));
+      const shin = new THREE.Mesh(geometry(j.front ? 'leg_fl' : 'leg_hl'), toy);
+      shin.scale.set(1.3, 1, 1.3);
+      lower.add(shin);
       upper.add(lower);
       g.add(upper);
       return { upper, lower, front: j.front };
     });
+    g.add(new THREE.Mesh(harness(), toy));
+    const hoof = new THREE.Object3D();
+    hoof.position.set(0, 0.45, 0.05);
+    g.add(hoof);
+    hooves.push(hoof);
     group.add(g);
     // Each a little out of step with the others, the way a real team runs
     return { g, head, legs, phase: i * 0.55 + (i % 2) * 0.3, baseY: 0.35 + (i === TEAM.length - 1 ? 0.15 : 0) };
@@ -336,7 +450,13 @@ export function buildTeam(toy: THREE.Material = material(), free = false): Team 
   const reinMat = new THREE.MeshBasicNodeMaterial();
   reinMat.colorNode = hex('#7A1F1C').mul(0.8);
   // A free team's reins are straight runs, restretched every frame between the hands and the collars
-  const reins = free ? new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 5, 1, true).translate(0, 0.5, 0), reinMat, TEAM.length * 2) : null;
+  const reins = free
+    ? new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(1, 1, 1, 5, 1, true).translate(0, 0.5, 0),
+        reinMat,
+        TEAM.length * 2
+      )
+    : null;
   if (reins) {
     reins.frustumCulled = false;
     group.add(reins);
@@ -419,9 +539,19 @@ export function buildTeam(toy: THREE.Material = material(), free = false): Team 
     d.g.scale.setScalar(pose.scale);
     // Galloping; standing (stride near 0), just the head going up and down now and then
     const idle = (1 - pose.stride) * pose.idle;
-    const { rise, pitch } = gallop(d, pose.phase, pose.stride, idle);
-    d.g.position.y += (rise + pose.lift) * pose.scale;
-    d.g.rotateX(pitch);
+    const { rise, pitch, w } = gallop(d, pose.phase, pose.stride, idle);
+    const l = live(d, pose, w);
+    d.g.position.y += (rise + pose.lift + l.drift + l.breath) * pose.scale;
+    d.g.rotateY(l.yaw);
+    d.g.rotateX(pitch + l.pitch);
+    d.g.rotateZ(l.roll);
+  };
+  /** Santa from the hips: leaning, turning, rocking, bouncing in his seat */
+  const santaTurn = new THREE.Euler(0, 0, 0, 'YXZ');
+  const poseSanta = (lean: number, twist: number, rock: number, lift: number) => {
+    santa.quaternion.setFromEuler(santaTurn.set(lean, twist, rock, 'YXZ'));
+    santa.position.copy(HIP).applyQuaternion(santa.quaternion).negate().add(HIP);
+    santa.position.y += lift;
   };
   const poseSleigh = (at: THREE.Vector3, q: THREE.Quaternion, scale: number, t: number, bob: number) => {
     sleigh.position.copy(at);
@@ -479,6 +609,7 @@ export function buildTeam(toy: THREE.Material = material(), free = false): Team 
     group,
     nose,
     runners,
+    hooves,
     sack,
     santa,
     santaArm,
@@ -491,5 +622,6 @@ export function buildTeam(toy: THREE.Material = material(), free = false): Team 
     slots: TEAM.map(([x, z]) => [x, z] as [number, number]),
     poseDeer,
     poseSleigh,
+    poseSanta,
   };
 }

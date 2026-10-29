@@ -40,7 +40,16 @@ type TownData = {
 
 export type TownStage = NonNullable<Awaited<ReturnType<typeof buildTown>>>;
 
-type Powder = { at: THREE.Vector3; v: THREE.Vector3; born: number; life: number; size: number; grow: number; c: THREE.Color; g: number };
+type Powder = {
+  at: THREE.Vector3;
+  v: THREE.Vector3;
+  born: number;
+  life: number;
+  size: number;
+  grow: number;
+  c: THREE.Color;
+  g: number;
+};
 
 /** `disc`: the circle of ground that fits under the glass (its middle and radius, in metres) */
 export async function buildTown(disc: { x: number; z: number; r: number }) {
@@ -78,7 +87,15 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
 
   const vec = (v: V) => new THREE.Vector3(...v);
   const root = new THREE.Group();
-  root.add(hero, core, town, outer, deco, bulbsMesh(data.bulbs, 0.08, 1.7, { screen: true }), starsMesh(data.stars, { screen: true }));
+  root.add(
+    hero,
+    core,
+    town,
+    outer,
+    deco,
+    bulbsMesh(data.bulbs, 0.08, 1.7, { screen: true }),
+    starsMesh(data.stars, { screen: true })
+  );
 
   // ---- The present, while it's in the air on its way to the chimney ----
   const present = new THREE.Group();
@@ -96,7 +113,7 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
   const glow = sprites(1500, true);
   const powder = sprites(1400, true, true);
   root.add(glow.mesh, powder.mesh);
-  const trail = dust(360);
+  const trail = dust(720);
   const smoke = dust(220);
   const lanterns = data.lanterns.map(vec);
   const chimney0 = vec(data.chimney);
@@ -122,7 +139,15 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
   // Snow and soot that falls: a few hundred bits, each under gravity with a little air drag
   const bits: (Powder | null)[] = Array.from({ length: 900 }, () => null);
   let nextBit = 0;
-  const shed = (at: THREE.Vector3, v: THREE.Vector3, life: number, size: number, grow: number, c: THREE.Color, g = 9.81) => {
+  const shed = (
+    at: THREE.Vector3,
+    v: THREE.Vector3,
+    life: number,
+    size: number,
+    grow: number,
+    c: THREE.Color,
+    g = 9.81
+  ) => {
     bits[nextBit] = { at: at.clone(), v: v.clone(), born: -1, life, size, grow, c, g };
     nextBit = (nextBit + 1) % bits.length;
   };
@@ -152,9 +177,35 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
         for (let j = 0; j < 3; j++) {
           if (Math.random() > flying) continue;
           const c = [gold, gold, rose, ice][Math.floor(Math.random() * 4)];
-          tmp2.set((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3).multiplyScalar(k);
-          trail.emit(tmp, tmp2, 1.6 + Math.random(), (0.06 + Math.random() * 0.08) * k, c, Math.random() < 0.3 ? 0.9 : 0);
+          tmp2
+            .set((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
+            .multiplyScalar(k);
+          trail.emit(
+            tmp,
+            tmp2,
+            1.6 + Math.random(),
+            (0.06 + Math.random() * 0.08) * k,
+            c,
+            Math.random() < 0.3 ? 0.9 : 0
+          );
         }
+      }
+      // And a little off every deer's hooves, finer and shorter-lived
+      for (const h of team.hooves) {
+        if (Math.random() > flying * 0.4) continue;
+        h.getWorldPosition(tmp);
+        root.worldToLocal(tmp);
+        tmp2
+          .set((Math.random() - 0.5) * 0.2, -0.1 - Math.random() * 0.2, (Math.random() - 0.5) * 0.2)
+          .multiplyScalar(k);
+        trail.emit(
+          tmp,
+          tmp2,
+          0.7 + Math.random() * 0.5,
+          (0.03 + Math.random() * 0.04) * k,
+          Math.random() < 0.7 ? gold : ice,
+          0.9
+        );
       }
     }
     smokeClock += dt;
@@ -257,7 +308,8 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
     setFov(f: number) {
       baseFov = f;
     },
-    /** Dev: how bright the town is lit, and how much moonlight lies under it */
+    /** How bright the town is lit (down a little with the camera down among the snow), and how much
+     *  moonlight lies under it */
     tune(e?: number, a?: number) {
       if (e !== undefined) exposure.value = e;
       if (a !== undefined) ambient.value = a;
@@ -271,8 +323,15 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
         for (let k = 0; k < 40; k++) {
           const a = Math.random() * Math.PI * 2;
           const sp = 0.6 + Math.random() * 1.8;
-          shed(tmp, tmp2.set(Math.cos(a) * sp, 0.8 + Math.random() * 2.2, Math.sin(a) * sp), 0.9 + Math.random() * 0.9, 0.05 + Math.random() * 0.06,
-            1.5, snowWhite, 2.5);
+          shed(
+            tmp,
+            tmp2.set(Math.cos(a) * sp, 0.8 + Math.random() * 2.2, Math.sin(a) * sp),
+            0.9 + Math.random() * 0.9,
+            0.05 + Math.random() * 0.06,
+            1.5,
+            snowWhite,
+            2.5
+          );
         }
       }
       // The jolt shakes the snow loose along both eaves: it slides, tips over the edge, and falls
@@ -283,7 +342,15 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
           tmp.set(x, ridge.y - 3.4 - Math.random() * 0.4, sgn * (3.15 + Math.random() * 0.2));
           tmp2.set((Math.random() - 0.5) * 0.4, -0.2 - Math.random() * 0.6, sgn * (0.6 + Math.random() * 1.2));
           const big = Math.random() < 0.35;
-          shed(tmp, tmp2, 1.4 + Math.random() * 0.8, big ? 0.22 + Math.random() * 0.15 : 0.08, big ? 0.6 : 3.5, snowWhite, big ? 9.81 : 3);
+          shed(
+            tmp,
+            tmp2,
+            1.4 + Math.random() * 0.8,
+            big ? 0.22 + Math.random() * 0.15 : 0.08,
+            big ? 0.6 : 3.5,
+            snowWhite,
+            big ? 9.81 : 3
+          );
         }
       }
       // A cloud of it off the ridge
@@ -297,7 +364,11 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
     spray(at: THREE.Vector3, n: number, speed: number) {
       for (let k = 0; k < n; k++) {
         const a = Math.random() * Math.PI * 2;
-        tmp2.set(Math.cos(a) * speed * Math.random(), speed * (0.5 + Math.random()), Math.sin(a) * speed * Math.random());
+        tmp2.set(
+          Math.cos(a) * speed * Math.random(),
+          speed * (0.5 + Math.random()),
+          Math.sin(a) * speed * Math.random()
+        );
         shed(at, tmp2, 0.8 + Math.random() * 0.6, 0.08 + Math.random() * 0.08, 2, snowWhite, 3);
       }
     },
@@ -322,7 +393,10 @@ export async function buildTown(disc: { x: number; z: number; r: number }) {
     gust(at: THREE.Vector3, dir: THREE.Vector3) {
       for (let k = 0; k < 6; k++) {
         tmp.copy(at).add(tmp2.set((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 1.1, 0));
-        tmp2.copy(dir).multiplyScalar(1.2 + Math.random() * 1.5).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, (Math.random() - 0.3) * 0.5, 0));
+        tmp2
+          .copy(dir)
+          .multiplyScalar(1.2 + Math.random() * 1.5)
+          .add(new THREE.Vector3((Math.random() - 0.5) * 0.6, (Math.random() - 0.3) * 0.5, 0));
         shed(tmp, tmp2, 1.2 + Math.random(), 0.02 + Math.random() * 0.03, 0.5, snowWhite, 0.4);
       }
     },

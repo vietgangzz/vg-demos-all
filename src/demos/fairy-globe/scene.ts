@@ -16,9 +16,10 @@ import { notesBetween, type Pitch } from './tune';
  * snow, every window lit, and Santa's sleigh going round and round over the roofs.
  *
  * Shake the phone and the snow goes up in a storm and slowly settles back on the roofs; tilt it and
- * the snow drifts. Turn the globe on its base and the music box plays, the tune pinned round the
- * turn so it plays as fast as you turn it; let go of a good wind and it plays on by itself, slowing
- * as it runs down. Tap the glass and you go in: through it, after the sleigh down over the roofs,
+ * the snow drifts. Wind the key in its side and the music box plays, the globe turning slowly on
+ * its base, and it starts to snow in the town; as it runs down the snow stops and settles on the
+ * roofs. Turn the globe by hand and it plays too, the tune pinned round the turn so it plays as
+ * fast as you turn it. Tap the glass and you go in: through it, after the sleigh down over the roofs,
  * round the tree in the square, down the chimney to a present by the fire, and back out to the shelf.
  *
  * Everything is in the town's metres: the globe is nearly 400 m across, the room kilometres wide.
@@ -48,6 +49,10 @@ const AIM = new THREE.Vector3(GLOBE.centre.x, 138, GLOBE.centre.z);
 /** The music box: how fast it turns playing (rad/s), and how long a turn of winding plays for (s) */
 const PLAY_SPEED = 0.33;
 const WIND_PER_TURN = 26;
+/** How far the key's wound (turns) before letting go of it takes you in */
+const KEY_TO_GO = 0.75;
+/** How long a turn of the key plays for (s) */
+const WIND_PER_KEY_TURN = 14;
 
 /** The sleigh's loop over the town, high over the roofs, in the globe's frame */
 const LOOP = { x: GLOBE.centre.x, z: GLOBE.centre.z, rx: 70, rz: 62, y: 64, speed: 17 };
@@ -117,8 +122,11 @@ export function createSnowGlobe(
   const glowing = bloom(color, 0.34, 0.45, 0.8);
   const crossing = TSL.uniform(0);
   const fade = TSL.uniform(1);
-  let fadeTo = 0;
+  const fadeTo = 0;
+  let fadeNow = 1;
   const vignetteAt = TSL.uniform(0.62);
+  /** Down in the town, close up to all that snow, it's exposed a little darker */
+  const exposure = TSL.uniform(1);
   {
     const uv = TSL.screenUV;
     const p = uv.sub(0.5);
@@ -135,9 +143,20 @@ export function createSnowGlobe(
       color.sample(uv.add(warp.mul(0.65))).b
     );
     const flash = TSL.vec3(0.55, 0.62, 0.75).mul(crossing.mul(crossing).mul(0.18));
-    const lit = seen.add(glowing.rgb).add(flash);
+    const lit = seen.add(glowing.rgb).add(flash).mul(exposure);
+    // The highlights roll off rather than clip: lit snow stays snow, not a blown-out white
+    const KNEE = 0.72;
+    const soft = TSL.min(lit, KNEE).add(
+      TSL.exp(
+        TSL.max(lit.sub(KNEE), 0)
+          .div(1 - KNEE)
+          .negate()
+      )
+        .oneMinus()
+        .mul(1 - KNEE)
+    );
     const vignette = TSL.smoothstep(1.1, 0.25, TSL.length(p.mul(TSL.vec2(1.0, 1.3))));
-    post.outputNode = TSL.vec4(lit.mul(TSL.mix(vignetteAt, 1, vignette)).mul(fade.oneMinus()), 1);
+    post.outputNode = TSL.vec4(soft.mul(TSL.mix(vignetteAt, 1, vignette)).mul(fade.oneMinus()), 1);
   }
 
   // ---- What's in the globe ----
@@ -148,6 +167,10 @@ export function createSnowGlobe(
   let snow: Snow | null = null;
   let dive: Dive | null = null;
   let diveT = 0;
+  /** How far through the tune it's played, in the globe */
+  let score = 0;
+  /** Dev: how fast the dive runs (0 holds it, for looking at a moment of it) */
+  let rate = 1;
   let stageNow: Stage = 'shelf';
   const go = (s: Stage) => {
     if (stageNow === s) return;
@@ -185,6 +208,12 @@ export function createSnowGlobe(
 
   // ---- The music box ----
   const spin = { angle: 0, w: 0, held: false, wound: 0, lastW: 0, played: 0 };
+  /** How far the key's been wound by hand, on top of turning with the cylinder (rad); a finger on
+   *  it, how far it's wound it this time and how many clicks of the ratchet that was */
+  let keyWound = 0;
+  /** When the glass was last tapped: the key wiggles, it's what starts it */
+  let nudgedAt = -10;
+  const hand = { on: false, turns: 0, clicks: 0 };
   /** Where round the turn the tune has got to: one turn of the globe is the whole tune */
   const turnAt = () => spin.angle / (Math.PI * 2);
 
@@ -265,6 +294,7 @@ export function createSnowGlobe(
         stride: 0.9,
         lift: 0.3,
         idle: 0,
+        t,
       });
     });
     loopAt(t + 0.05, sleighVel)
@@ -307,13 +337,20 @@ export function createSnowGlobe(
     return out.copy(world).applyMatrix4(qInv.copy(inner.matrixWorld).invert());
   };
   const qInv = new THREE.Matrix4();
+  /** Going in, the globe turns on its base (the short way round) back to how it stands at home, the
+   *  way the way in is laid out for */
+  const align = { from: 0, to: 0, dur: 0 };
   const startDive = () => {
     if (!ready || dive || !town || !room || !team) return false;
-    // The globe stops turning: it's carried in its own frame from here
     spin.w = 0;
     spin.wound = 0;
-    toLocal(shelf.pos, camLocal);
-    toLocal(shelf.look, lookLocal);
+    const off = spin.angle - Math.round(spin.angle / (Math.PI * 2)) * Math.PI * 2;
+    align.from = spin.angle;
+    align.to = spin.angle - off;
+    align.dur = 0.4 + 1.1 * (Math.abs(off) / Math.PI);
+    // Turned home, the globe's frame is the room's: the way in starts from the shelf as it is
+    camLocal.copy(shelf.pos);
+    lookLocal.copy(shelf.look);
     room.reset();
     dive = createDive(
       {
@@ -331,6 +368,10 @@ export function createSnowGlobe(
       onBeat
     );
     diveT = 0;
+    score = -1e-4;
+    camTrack.length = 0;
+    // The title and the hints go as you tap
+    go('inside');
     events.onHaptic('enter');
     events.onCue('whoosh');
     return true;
@@ -339,7 +380,6 @@ export function createSnowGlobe(
   const onBeat = (b: DiveBeat) => {
     if (b === 'enter') {
       go('inside');
-      events.onChapter('glass');
       events.onCue('twinkle');
       events.onHaptic('enter');
     }
@@ -349,7 +389,6 @@ export function createSnowGlobe(
     }
     if (b === 'throw') events.onHaptic('throw');
     if (b === 'chimney') {
-      events.onChapter('chimney');
       events.onCue('whoosh');
       events.onHaptic('deliver');
     }
@@ -359,7 +398,6 @@ export function createSnowGlobe(
       events.onHaptic('deliver');
     }
     if (b === 'asleep') {
-      events.onChapter('morning');
       events.onCue('twinkle');
       events.onHaptic('home');
     }
@@ -373,19 +411,22 @@ export function createSnowGlobe(
       go('shelf');
       events.onChapter('home');
       events.onCue('whoosh');
+      // Out through the glass, the snow in it goes up in a flurry behind you as you draw back
+      snow?.shake(0.55);
     }
     if (b === 'done') {
-      // Back on the shelf: the sleigh carries on round its loop from where it came back onto it, a
-      // little snow going up as if the globe had been set down, and the music box wound
+      // Back on the shelf: the sleigh carries on round its loop from where it came back onto it, and
+      // the music box wound
       if (dive) loopClock += dive.end;
       dive = null;
       posed.first = true;
-      snow?.shake(0.45);
       spin.wound = WIND_PER_TURN * 0.6;
     }
   };
 
   // ---- Running ----
+  /** Dev: the camera's way through the last dive (time, where, looking at, up, lens), for tuning it */
+  const camTrack: number[][] = [];
   const cam = new THREE.Vector3();
   const look = new THREE.Vector3();
   const down = new THREE.Vector3(0, -1, 0);
@@ -419,9 +460,19 @@ export function createSnowGlobe(
         spin.angle += spin.w * dt;
         if (playing) spin.wound = Math.max(0, spin.wound - dt);
       }
-      if (dive) spin.w = 0;
+      if (dive) {
+        // Turning home as it goes in, the water swirling after the glass
+        const was = spin.angle;
+        spin.angle = THREE.MathUtils.lerp(align.from, align.to, THREE.MathUtils.smootherstep(diveT + dt, 0, align.dur));
+        spin.w = (spin.angle - was) / Math.max(dt, 1e-3);
+      }
       const turnNow = turnAt();
-      if (turnNow > spin.played) {
+      if (dive) {
+        // In the globe, the music box plays the tune once through, start to end, under it all
+        const k = dive.score(diveT);
+        if (k > score) for (const n of notesBetween(score, k)) events.onNote(n.pitch, n.bass);
+        score = Math.max(score, k);
+      } else if (turnNow > spin.played) {
         // Each pin passed plucks its note
         for (const n of notesBetween(spin.played, turnNow)) events.onNote(n.pitch, n.bass);
       }
@@ -432,21 +483,43 @@ export function createSnowGlobe(
       spin.lastW = spin.w;
       stage.rotation.y = spin.angle;
       stage.updateMatrixWorld(true);
-      // The key, geared to the cylinder: three turns to each of the globe's
-      key.turn.rotation.x = -spin.angle * 3;
+      // The key, geared to the cylinder, unwinding as it plays (a turn of it for each turn's worth
+      // of tune), and wound by hand
+      const nudge = clock - nudgedAt;
+      key.turn.rotation.x =
+        -spin.angle * 1.4 + keyWound + (nudge < 1.2 ? Math.sin(nudge * 24) * 0.45 * Math.exp(-nudge * 3.5) : 0);
+      // It snows while the music box plays (and always, down in the town)
+      snow.snowing(!!dive || spin.wound > 0.3 || Math.abs(spin.w) > 0.06);
 
       if (dive) {
-        diveT += dt;
-        dive.update(diveT, dt);
+        diveT += dt * rate;
+        // (Its last step can end it: back on the shelf from this frame)
+        dive.update(diveT, dt * rate);
+      }
+      if (dive) {
         const v = dive.view;
+        // In the globe's frame turned home, which is the room's (while it's still turning there,
+        // the camera's out on the shelf where it makes no difference)
         cam.copy(v.pos);
         look.copy(v.look);
-        inner.localToWorld(cam);
-        inner.localToWorld(look);
         camera.position.copy(cam);
         camera.up.copy(v.up);
         camera.lookAt(look);
         camera.fov = v.fov;
+        if (__DEV__)
+          camTrack.push([
+            diveT,
+            v.pos.x,
+            v.pos.y,
+            v.pos.z,
+            v.look.x,
+            v.look.y,
+            v.look.z,
+            v.up.x,
+            v.up.y,
+            v.up.z,
+            v.fov,
+          ]);
         const indoors = dive.inside(v.pos);
         town.hero.visible = !indoors;
         room.root.visible = indoors || v.pos.distanceTo(room.windowAt) < 70;
@@ -492,13 +565,23 @@ export function createSnowGlobe(
       ball.front.visible = !inside;
       room$.position.copy(camera.position);
       room$.scale.setScalar(20000);
-      // Down in the town the glow comes up and the corners close in
+      // Down in the town, all that snow close up: the glow held back, the exposure down a little,
+      // the corners closing in
       const k = inside ? 1 : 0;
-      glowing.strength.value = THREE.MathUtils.lerp(0.34, 0.4, k);
-      glowing.threshold.value = THREE.MathUtils.lerp(0.8, 0.84, k);
+      glowing.strength.value = THREE.MathUtils.lerp(0.34, 0.3, k);
+      glowing.threshold.value = THREE.MathUtils.lerp(0.8, 0.88, k);
       vignetteAt.value = THREE.MathUtils.lerp(0.62, 0.5, k);
+      exposure.value += ((inside ? 0.95 : 1) - exposure.value) * (1 - Math.exp(-dt * 3));
+      // The town's lit snow and walls, down a little as the camera comes down among them (the lit
+      // windows and lamps stay as bright): seen close, it's night in the town, not a white-out
+      const among = inside
+        ? THREE.MathUtils.smoothstep(-Math.log(Math.max(1, camLocal.y)), -Math.log(80), -Math.log(18))
+        : 0;
+      town.tune(THREE.MathUtils.lerp(1.1, 0.8, among));
 
-      fade.value += (fadeTo - fade.value) * (1 - Math.exp(-dt * 2.2));
+      fadeNow += (fadeTo - fadeNow) * (1 - Math.exp(-dt * 2.2));
+      // Between shots it goes dark for a moment
+      fade.value = Math.max(fadeNow, dive ? dive.view.dark : 0);
       post.render();
       context.present();
     } catch (e) {
@@ -544,12 +627,45 @@ export function createSnowGlobe(
       // Winding forward plays it longer
       if (da > 0) spin.wound = Math.min(60, spin.wound + (da / (Math.PI * 2)) * WIND_PER_TURN);
     },
+    /** A finger down at (x, y), in points: on the key (or near it), it takes hold of it */
+    holdKey(x: number, y: number) {
+      key.turn.updateMatrixWorld(true);
+      project.set(16, 0, 0).applyMatrix4(key.turn.matrixWorld).project(camera);
+      const kx = (project.x * 0.5 + 0.5) * width;
+      const ky = (-project.y * 0.5 + 0.5) * height;
+      hand.on = ready && !dive && Math.hypot(x - kx, y - ky) < 52;
+      hand.turns = 0;
+      hand.clicks = 0;
+      return hand.on;
+    },
+    holdingKey: () => hand.on,
+    /** Winding it `turns` further, each playing the tune on a while longer: how many clicks of the
+     *  ratchet that passed */
+    windKey(turns: number) {
+      if (!hand.on || dive || turns <= 0) return 0;
+      keyWound += turns * Math.PI * 2;
+      spin.wound = Math.min(90, spin.wound + turns * WIND_PER_KEY_TURN);
+      hand.turns += turns;
+      const clicks = Math.floor(hand.turns * 4) - hand.clicks;
+      hand.clicks += clicks;
+      return clicks;
+    },
+    /** How far it's been wound since it was taken hold of, in turns */
+    keyTurns: () => hand.turns,
+    /** Let go of it: whether it was held */
+    letGoKey() {
+      const was = hand.on;
+      hand.on = false;
+      // Wound far enough, the music box plays, and in you go after the tune
+      if (was && hand.turns >= KEY_TO_GO) startDive();
+      return was;
+    },
     /** Let go, turning at w rad/s */
     letGo(w: number) {
       spin.held = false;
       spin.w = THREE.MathUtils.clamp(w, -3, 3);
     },
-    /** A tap at (x, y), in points: on the glass, it goes in */
+    /** A tap at (x, y), in points: on the glass, the key gives a little turn, to show what starts it */
     tap(x: number, y: number) {
       if (!ready || dive) return false;
       project.copy(GLOBE.centre).project(camera);
@@ -566,7 +682,9 @@ export function createSnowGlobe(
         .project(camera);
       const r = Math.hypot((edge.x * 0.5 + 0.5) * width - cx, (-edge.y * 0.5 + 0.5) * height - cy);
       if (Math.hypot(x - cx, y - cy) > r * 1.05) return false;
-      return startDive();
+      nudgedAt = clock;
+      events.onHaptic('throw');
+      return true;
     },
     /** Where the glass is on the screen, in points: its middle and radius */
     globeOnScreen() {
@@ -596,6 +714,14 @@ export function createSnowGlobe(
     /** Dev: jump the dive to time T */
     seek(T: number) {
       if (dive) diveT = T;
+    },
+    /** Dev: run the dive slower, faster, or hold it (0) */
+    rate(r: number) {
+      rate = r;
+    },
+    /** Dev: the camera's way through the last dive, every `every`th frame */
+    track(every = 2) {
+      return camTrack.filter((_, i) => i % every === 0).map((r) => r.map((x) => Math.round(x * 1000) / 1000));
     },
     debug() {
       return {

@@ -6,8 +6,9 @@ import { sprites } from './fx';
  * The snow in the globe: flakes and glitter suspended in the water, as a few thousand particles
  * stepped on the CPU. The water has a motion of its own (a swirl that turns the whole of it, and
  * eddies), and each bit drifts with it while sinking at its own pace: flakes slowly, glitter
- * faster. They come to rest where they land, on the roofs and the streets and the snow, and lie
- * there until the globe's shaken again.
+ * faster. They come to rest where they land, on the roofs and the streets and the snow; while it's
+ * snowing they lie there only a while and melt into it, and more comes down from high up in the
+ * glass. When it stops, what's falling settles, and lies.
  *
  * Shake it and everything lying is thrown up into a swirl that slowly calms; spin it and the water
  * lags behind the glass, so the snow turns the other way; tilt it and the snow drifts to the low
@@ -43,8 +44,12 @@ export function createSnow(opts: {
   const sink = new Float32Array(N);
   const drag = new Float32Array(N);
   const seed = new Float32Array(N);
-  /** 0 drifting, 1 lying where it landed */
+  /** 0 drifting, 1 lying where it landed; how long until it's melted into the snow it lies on; how
+   *  long it's been coming down (it fades in, new) */
   const lying = new Uint8Array(N);
+  const melt = new Float32Array(N);
+  const age = new Float32Array(N);
+  let falling = false;
   const tint = Array.from({ length: N }, () => new THREE.Color());
 
   // The water's own motion: a swirl (rad/s, about an axis through the middle) and eddies (m/s)
@@ -58,8 +63,8 @@ export function createSnow(opts: {
   flakeSprites.mesh.renderOrder = 9;
   glitterSprites.mesh.renderOrder = 10;
 
-  const scatter = (i: number, inSky = true) => {
-    // Anywhere in the water above the roofs
+  const scatter = (i: number, inSky = true, high = false) => {
+    // Anywhere in the water above the roofs (or high up in it)
     for (let tries = 0; tries < 20; tries++) {
       const x = centre.x + (Math.random() * 2 - 1) * radius;
       const z = centre.z + (Math.random() * 2 - 1) * radius;
@@ -69,6 +74,7 @@ export function createSnow(opts: {
       const dz = z - centre.z;
       if (dx * dx + dy * dy + dz * dz > (radius - 6) ** 2) continue;
       if (inSky && y < ground(x, z) + 8) continue;
+      if (high && y < centre.y - radius * 0.2) continue;
       px[i] = x;
       py[i] = y;
       pz[i] = z;
@@ -85,6 +91,7 @@ export function createSnow(opts: {
     sink[i] = glitter ? 10 + Math.random() * 6 : 4.5 + Math.random() * 4.5;
     drag[i] = glitter ? 3.2 : 2.0 + Math.random() * 0.6;
     seed[i] = Math.random() * 1000;
+    age[i] = 10;
     if (glitter) tint[i].copy(GLITTER[i % GLITTER.length]);
     scatter(i);
   }
@@ -155,7 +162,19 @@ export function createSnow(opts: {
     eddies = Math.max(2.2, eddies * Math.exp(-dt / 3.2));
     const calm = eddies < 9;
     for (let i = 0; i < N; i++) {
-      if (lying[i]) continue;
+      age[i] += dt;
+      if (lying[i]) {
+        // Snowing: melted into the snow it's lying on, and down again from high up in the glass
+        if (!falling) continue;
+        melt[i] -= dt;
+        if (melt[i] <= 0) {
+          lying[i] = 0;
+          scatter(i, true, true);
+          vx[i] = vy[i] = vz[i] = 0;
+          age[i] = 0;
+        }
+        continue;
+      }
       const x = px[i];
       const y = py[i];
       const z = pz[i];
@@ -206,6 +225,7 @@ export function createSnow(opts: {
       if (ny < h + 0.45) {
         if (calm && vy[i] < 2) {
           lying[i] = 1;
+          melt[i] = i < nF ? 2 + Math.random() * 6 : 1.5 + Math.random() * 3;
           ny = h + 0.4;
           vx[i] = vy[i] = vz[i] = 0;
         } else {
@@ -229,7 +249,7 @@ export function createSnow(opts: {
     for (let i = 0; i < nF; i++) {
       at.set(px[i], py[i], pz[i]);
       const d = at.distanceTo(cam);
-      const fade = near > 0 ? THREE.MathUtils.smoothstep(d, near, near * 2.2) : 1;
+      const fade = (near > 0 ? THREE.MathUtils.smoothstep(d, near, near * 2.2) : 1) * Math.min(1, age[i] / 0.8);
       if (fade <= 0.01) {
         flakeSprites.hide(i);
         continue;
@@ -238,13 +258,13 @@ export function createSnow(opts: {
       const warm = THREE.MathUtils.clamp(1 - (py[i] - 5) / 70, 0, 1) * 0.55;
       col.copy(FLAKE_COLOUR).lerp(FLAKE_WARM, warm);
       const s = lying[i] ? size[i] * 0.75 : size[i];
-      flakeSprites.set(i, at, s, col, (lying[i] ? 0.8 : 0.92) * fade, seed[i]);
+      flakeSprites.set(i, at, s, col, (lying[i] ? 0.8 * Math.min(1, melt[i] / 0.6) : 0.92) * fade, seed[i]);
     }
     for (let j = 0; j < nG; j++) {
       const i = nF + j;
       at.set(px[i], py[i], pz[i]);
       const d = at.distanceTo(cam);
-      const fade = near > 0 ? THREE.MathUtils.smoothstep(d, near, near * 2.2) : 1;
+      const fade = (near > 0 ? THREE.MathUtils.smoothstep(d, near, near * 2.2) : 1) * Math.min(1, age[i] / 0.8);
       if (fade <= 0.01) {
         glitterSprites.hide(j);
         continue;
@@ -252,11 +272,18 @@ export function createSnow(opts: {
       // Tumbling flat flakes of foil: dark edge-on, flashing as a face turns to the light
       const turn = Math.sin(seed[i] + t * (lying[i] ? 0.6 : 3.2 + (seed[i] % 3)));
       const flash = Math.pow(Math.max(0, turn), 14) * 2.6 + 0.16;
-      col.copy(tint[i]).multiplyScalar(flash * fade);
+      col.copy(tint[i]).multiplyScalar(flash * fade * (lying[i] ? Math.min(1, melt[i] / 0.6) : 1));
       glitterSprites.set(j, at, size[i] * (0.8 + flash * 0.25), col, 1, seed[i] + t);
     }
     flakeSprites.flush();
     glitterSprites.flush();
+  };
+
+  /** Whether it's snowing. Starting, what's lying starts melting away into new snow coming down,
+   *  a little at a time over the first few seconds */
+  const snowing = (on: boolean) => {
+    if (on && !falling) for (let i = 0; i < N; i++) if (lying[i]) melt[i] = Math.random() * 4;
+    falling = on;
   };
 
   /** How much is still drifting, 0 to 1 */
@@ -275,6 +302,7 @@ export function createSnow(opts: {
     tilt,
     stir,
     drifting,
+    snowing,
     /** The swirl and the eddies, for what's moving with the water */
     water: () => ({ swirl: swirl.clone(), eddies }),
   };

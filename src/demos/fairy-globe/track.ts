@@ -31,7 +31,14 @@ export class TimeSpline {
       if (i === 0 || i === keys.length - 1) return { t: k.t, p: k.p.clone(), v: new THREE.Vector3() };
       const a = keys[i - 1];
       const b = keys[i + 1];
-      return { t: k.t, p: k.p.clone(), v: b.p.clone().sub(a.p).divideScalar(b.t - a.t) };
+      return {
+        t: k.t,
+        p: k.p.clone(),
+        v: b.p
+          .clone()
+          .sub(a.p)
+          .divideScalar(b.t - a.t),
+      };
     });
   }
   get start() {
@@ -150,7 +157,8 @@ export class PacedCurve {
 
 /**
  * Following a moving target the way a hand-held camera does: it moves with the target (no lag
- * while it glides along), and a critically damped spring soaks up any sudden change in it
+ * while it glides along), and a critically damped spring soaks up any sudden change in it. Not
+ * `carried`, it's all spring: it eases after the target, a little behind, however it moves.
  */
 export class Follow {
   x = new THREE.Vector3();
@@ -159,7 +167,10 @@ export class Follow {
   private last = new THREE.Vector3();
   private move = new THREE.Vector3();
   private started = false;
-  constructor(public omega = 6) {}
+  constructor(
+    public omega = 6,
+    public carried = true
+  ) {}
   reset(to: THREE.Vector3) {
     this.x.copy(to);
     this.last.copy(to);
@@ -175,12 +186,15 @@ export class Follow {
     this.move.subVectors(target, this.last);
     this.last.copy(target);
     // A big jump isn't carried: that's what the spring is for
-    if (this.move.length() < 4 * dt * 60) this.x.add(this.move);
+    if (this.carried && this.move.length() < 4 * dt * 60) this.x.add(this.move);
     const n = 3;
     const h = dt / n;
     const w = this.omega;
     for (let i = 0; i < n; i++) {
-      this.a.subVectors(target, this.x).multiplyScalar(w * w).addScaledVector(this.v, -2 * w);
+      this.a
+        .subVectors(target, this.x)
+        .multiplyScalar(w * w)
+        .addScaledVector(this.v, -2 * w);
       this.v.addScaledVector(this.a, h);
       this.x.addScaledVector(this.v, h);
     }

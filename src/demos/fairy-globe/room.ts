@@ -4,7 +4,7 @@ import * as THREE from 'three/webgpu';
 import { bakedMesh, bulbsMesh, display, lin, litGeometry, type Lit, type Packed, type V } from './baked';
 import { dust, sprites } from './fx';
 import { Spring } from './physics';
-import { smooth, smoother, TimeSpline } from './track';
+import { smooth, smoother } from './track';
 
 /**
  * The living room inside the red house (scripts/blender/xmas_room.py), set into the town where it
@@ -65,7 +65,10 @@ export async function buildRoom() {
     exposure,
     2.2,
     // Nothing baked across the flue (the ceiling runs over it): it's lined in brick below, all the way up
-    { screen: true, hole: { x: data.flue.top[0], z: data.flue.top[2], w: 0.2, d: 0.075, from: data.flue.bottom[1] + 0.3 } }
+    {
+      screen: true,
+      hole: { x: data.flue.top[0], z: data.flue.top[2], w: 0.2, d: 0.075, from: data.flue.bottom[1] + 0.3 },
+    }
   );
   if (!baked) return null;
 
@@ -96,14 +99,32 @@ export async function buildRoom() {
   const joint = TSL.step(TSL.fract(course), 0.05).max(TSL.step(TSL.fract(sp.y.div(rowH)), 0.1));
   const brick = mix(vec3(0.28, 0.1, 0.06), vec3(0.4, 0.16, 0.09), brickId).mul(brickId.mul(0.35).add(0.65));
   // Soot heavier toward the fire
-  const soot = TSL.smoothstep(SHAFT_H * 0.5, -SHAFT_H * 0.5, sp.y).mul(0.55).add(0.25);
+  const soot = TSL.smoothstep(SHAFT_H * 0.5, -SHAFT_H * 0.5, sp.y)
+    .mul(0.55)
+    .add(0.25);
   const albedo = mix(brick.mul(float(1).sub(soot)), vec3(0.05, 0.045, 0.04), joint);
-  const fromFire = sp.y.add(SHAFT_H / 2).mul(-0.42).exp().mul(3.0).mul(flicker);
-  const fromSky = sp.y.sub(SHAFT_H / 2).mul(1.1).exp().mul(0.8);
+  const fromFire = sp.y
+    .add(SHAFT_H / 2)
+    .mul(-0.42)
+    .exp()
+    .mul(3.0)
+    .mul(flicker);
+  const fromSky = sp.y
+    .sub(SHAFT_H / 2)
+    .mul(1.1)
+    .exp()
+    .mul(0.8);
   shaftMat.colorNode = display(
-    albedo.mul(vec3(1.0, 0.55, 0.25).mul(fromFire).add(vec3(0.45, 0.52, 0.75).mul(fromSky)).add(0.22)) as unknown as V3
+    albedo.mul(
+      vec3(1.0, 0.55, 0.25)
+        .mul(fromFire)
+        .add(vec3(0.45, 0.52, 0.75).mul(fromSky))
+        .add(0.22)
+    ) as unknown as V3
   );
-  const shaftGeo = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2, 1, 4, 1, true).rotateY(Math.PI / 4).scale(0.42, flueHigh - flueLow, 0.16);
+  const shaftGeo = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2, 1, 4, 1, true)
+    .rotateY(Math.PI / 4)
+    .scale(0.42, flueHigh - flueLow, 0.16);
   const shaft = new THREE.Mesh(shaftGeo, shaftMat);
   shaft.position.set(flueTopAt.x, (flueHigh + flueLow) / 2, flueTopAt.z);
   root.add(shaft);
@@ -112,7 +133,11 @@ export async function buildRoom() {
   const fireAt = new THREE.Vector3(...data.fire.at);
   const flames = new THREE.Group();
   for (let k = 0; k < 3; k++) {
-    const fm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const fm = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
     const q = uv();
     const seed = k * 7.3;
     const rise = vec2(q.x.mul(3.2).add(seed), q.y.mul(2.4).sub(time.mul(1.6 + k * 0.35)));
@@ -120,14 +145,32 @@ export async function buildRoom() {
     const n2 = TSL.mx_noise_float(rise.mul(2.3).add(4.1));
     const wobble = n1.mul(0.16).add(n2.mul(0.07));
     const x = q.x.sub(0.5).add(wobble.mul(q.y));
-    const tongues = sin(x.mul(Math.PI * (3 + k)).add(seed)).mul(0.5).add(0.5);
+    const tongues = sin(x.mul(Math.PI * (3 + k)).add(seed))
+      .mul(0.5)
+      .add(0.5);
     const height = mix(float(0.45), float(0.95), tongues).mul(n1.mul(0.25).add(0.85));
     const body = smoothstep(height, height.sub(0.35), q.y).mul(smoothstep(0.5, 0.18, abs(x)));
     const hot = smoothstep(0.15, 0.85, body);
-    const col = mix(mix(vec3(0.55, 0.04, 0.0), vec3(1.0, 0.32, 0.03), smoothstep(0.0, 0.45, body)), vec3(1.0, 0.85, 0.45), hot.mul(hot));
-    fm.colorNode = display(col.mul(body).mul(1.35 - k * 0.3).mul(level) as unknown as V3);
-    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(data.fire.w * (1 - k * 0.15), data.fire.h * (1 - k * 0.1)), fm);
-    sheet.position.set(fireAt.x + (k - 1) * 0.05, fireAt.y + (data.fire.h * (1 - k * 0.1)) / 2 - 0.02, fireAt.z - 0.08 + k * 0.08);
+    const col = mix(
+      mix(vec3(0.55, 0.04, 0.0), vec3(1.0, 0.32, 0.03), smoothstep(0.0, 0.45, body)),
+      vec3(1.0, 0.85, 0.45),
+      hot.mul(hot)
+    );
+    fm.colorNode = display(
+      col
+        .mul(body)
+        .mul(1.35 - k * 0.3)
+        .mul(level) as unknown as V3
+    );
+    const sheet = new THREE.Mesh(
+      new THREE.PlaneGeometry(data.fire.w * (1 - k * 0.15), data.fire.h * (1 - k * 0.1)),
+      fm
+    );
+    sheet.position.set(
+      fireAt.x + (k - 1) * 0.05,
+      fireAt.y + (data.fire.h * (1 - k * 0.1)) / 2 - 0.02,
+      fireAt.z - 0.08 + k * 0.08
+    );
     sheet.renderOrder = 5 + k;
     sheet.userData.baseY = sheet.position.y;
     sheet.userData.h = data.fire.h * (1 - k * 0.1);
@@ -137,11 +180,27 @@ export async function buildRoom() {
 
   // ---- Candle flames ----
   for (const c of data.candles) {
-    const cm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const cm = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
     const q = uv().sub(vec2(0.5, 0.3));
-    const sway = sin(time.mul(7.0).add(c[0] * 10)).mul(0.04).mul(q.y.add(0.3));
-    const shape = exp(q.x.add(sway).mul(q.x.add(sway)).mul(-60).sub(q.y.mul(q.y).mul(q.y.lessThan(0).select(40, 9))));
-    cm.colorNode = display(mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.92, 0.7), saturate(shape.mul(1.4).sub(0.3))).mul(shape.mul(2.2)) as unknown as V3);
+    const sway = sin(time.mul(7.0).add(c[0] * 10))
+      .mul(0.04)
+      .mul(q.y.add(0.3));
+    const shape = exp(
+      q.x
+        .add(sway)
+        .mul(q.x.add(sway))
+        .mul(-60)
+        .sub(q.y.mul(q.y).mul(q.y.lessThan(0).select(40, 9)))
+    );
+    cm.colorNode = display(
+      mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.92, 0.7), saturate(shape.mul(1.4).sub(0.3))).mul(
+        shape.mul(2.2)
+      ) as unknown as V3
+    );
     const f = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.12), cm);
     f.position.set(c[0], c[1] + 0.01, c[2]);
     f.renderOrder = 6;
@@ -150,8 +209,17 @@ export async function buildRoom() {
 
   // Not the ones on the string across the chimney breast that would hang inside the flue
   const inFlue = (at: V) =>
-    Math.abs(at[0] - data.flue.top[0]) < 0.26 && Math.abs(at[2] - data.flue.top[2]) < 0.13 && at[1] > data.flue.bottom[1] + 0.3;
-  root.add(bulbsMesh(data.bulbs.filter((b) => !inFlue(b.at)), 0.019, 1.7, { screen: true }));
+    Math.abs(at[0] - data.flue.top[0]) < 0.26 &&
+    Math.abs(at[2] - data.flue.top[2]) < 0.13 &&
+    at[1] > data.flue.bottom[1] + 0.3;
+  root.add(
+    bulbsMesh(
+      data.bulbs.filter((b) => !inFlue(b.at)),
+      0.019,
+      1.7,
+      { screen: true }
+    )
+  );
 
   // ---- Lit by the room: the firelight on one side, the tree's on the other ----
   const n = TSL.normalize(TSL.normalWorld);
@@ -159,7 +227,10 @@ export async function buildRoom() {
   const toFire = TSL.normalize(fireWorld.sub(TSL.positionWorld));
   const warm = saturate(TSL.dot(n, toFire)).mul(flicker).mul(0.85);
   const fromTree = saturate(n.y.mul(0.4).add(0.5)).mul(0.35);
-  const roomLight = vec3(1.0, 0.62, 0.32).mul(warm).add(vec3(0.42, 0.4, 0.5).mul(fromTree)).add(0.08);
+  const roomLight = vec3(1.0, 0.62, 0.32)
+    .mul(warm)
+    .add(vec3(0.42, 0.4, 0.5).mul(fromTree))
+    .add(0.08);
   const lit = (c: THREE.Color | string, extra?: THREE.Node<'vec3'>) => {
     const k = typeof c === 'string' ? lin(c) : c;
     let v = vec3(k.r, k.g, k.b).mul(roomLight) as unknown as V3;
@@ -400,13 +471,18 @@ export async function buildRoom() {
     // Standing up on its new legs, sitting down at the tree
     const stand = smooth(HOT + 0.3, HOT + 0.55, s) * 0.075;
     const sit = smooth(SIT, SIT + 0.45, s);
-    at.y += stand * (1 - sit * 0.8) * (1 - smoother(GONE, GONE + 0.6, s)) + hop + stepping * Math.abs(Math.sin(ph)) * 0.014;
+    at.y +=
+      stand * (1 - sit * 0.8) * (1 - smoother(GONE, GONE + 0.6, s)) + hop + stepping * Math.abs(Math.sin(ph)) * 0.014;
     // Panting on the rug: quick breaths; asleep: slow ones
     const pant = s > RUG && s < WALK ? Math.sin(s * 20) * 0.04 : 0;
     const sleepBreath = s > SLEEP ? Math.sin(s * 2.2) * 0.025 * (1 - smooth(GONE, GONE + 0.5, s)) : 0;
     const sigh = Math.exp(-((s - (SIT + 0.6)) ** 2) * 6) * 0.08;
     gift.position.copy(at);
-    gift.rotation.set(0, yaw, stepping * Math.sin(ph) * 0.1 + (s > HOT + 0.3 && s < DASH ? Math.sin(s * 40) * 0.08 : 0));
+    gift.rotation.set(
+      0,
+      yaw,
+      stepping * Math.sin(ph) * 0.1 + (s > HOT + 0.3 && s < DASH ? Math.sin(s * 40) * 0.08 : 0)
+    );
     gift.scale.set(1 + pant * 0.5 + sigh * 0.4, 1 - pant - sigh + sleepBreath, 1 + pant * 0.5 + sigh * 0.4);
     legs[0].rotation.x = stepping * Math.sin(ph) * 0.8 - sit * 1.45;
     legs[1].rotation.x = -stepping * Math.sin(ph) * 0.8 - sit * 1.45;
@@ -414,7 +490,11 @@ export async function buildRoom() {
     const flap = s > HOT + 0.3 && s < DASH ? Math.sin(s * 34) * 0.9 + 1.4 : 0;
     const wipe = smooth(RUG + 0.2, RUG + 0.45, s) * (1 - smooth(RUG + 0.9, WALK - 0.1, s));
     arms[0].rotation.set(-stepping * Math.sin(ph) * 0.7, 0, -0.35 - flap * 0.8);
-    arms[1].rotation.set(stepping * Math.sin(ph) * 0.7 - wipe * 2.3, 0, 0.35 + flap * 0.8 + wipe * 0.9 + Math.sin(s * 9) * wipe * 0.15);
+    arms[1].rotation.set(
+      stepping * Math.sin(ph) * 0.7 - wipe * 2.3,
+      0,
+      0.35 + flap * 0.8 + wipe * 0.9 + Math.sin(s * 9) * wipe * 0.15
+    );
     if (s > SLEEP) {
       const fold = smooth(SLEEP, SLEEP + 0.8, s);
       arms[0].rotation.z = THREE.MathUtils.lerp(arms[0].rotation.z, -0.15, fold);
@@ -443,7 +523,10 @@ export async function buildRoom() {
     smile.visible = !mouthO.visible;
     smile.scale.setScalar(s > SLEEP ? 0.85 : 1);
     // Pink cheeks always, rosier hot and asleep
-    const rosy = 0.4 + 0.3 * smooth(HOT + 0.3, HOT + 0.6, s) * (1 - smooth(DASH, RUG + 0.5, s)) + 0.35 * smooth(SIT + 0.3, SIT + 1.2, s);
+    const rosy =
+      0.4 +
+      0.3 * smooth(HOT + 0.3, HOT + 0.6, s) * (1 - smooth(DASH, RUG + 0.5, s)) +
+      0.35 * smooth(SIT + 0.3, SIT + 1.2, s);
     blushOpacity.value = rosy * (1 - smooth(GONE, GONE + 0.5, s));
     if (s > GONE + 0.7) {
       // Just a present again
@@ -453,7 +536,9 @@ export async function buildRoom() {
     // Heat coming off it: steam from the bottom while it's by the fire, a trail as it runs
     if (s > 0.6 && s < RUG + 0.3 && Math.random() < (s < DASH ? 0.5 : 0.8)) {
       steam.emit(
-        tmp.copy(gift.position).add(new THREE.Vector3((Math.random() - 0.5) * 0.15, -0.05, (Math.random() - 0.5) * 0.15)),
+        tmp
+          .copy(gift.position)
+          .add(new THREE.Vector3((Math.random() - 0.5) * 0.15, -0.05, (Math.random() - 0.5) * 0.15)),
         new THREE.Vector3((Math.random() - 0.5) * 0.05, 0.12 + Math.random() * 0.12, (Math.random() - 0.5) * 0.05),
         1.2 + Math.random() * 0.8,
         0.03 + Math.random() * 0.03,
@@ -477,60 +562,41 @@ export async function buildRoom() {
   };
 
   // ---- The camera in here ----
-  // Out under the arch, then low by the hearth for the yelp, back as it runs, after it to the tree,
-  // in close as it falls asleep, then back to see the whole room
+  // By the fire as it comes out of the dark of the flue and the present comes down into it, too hot;
+  // drawing back across the room as it runs off over the rug to the tree; in close as it drops off
   const story = (S: number) => {
     S0 = S;
     // 'hot' is the yelp (the squeak and the buzz go with it), a moment after the heat gets to it
-    return { end: S + END, hot: S + HOT + 0.3, asleep: S + SLEEP };
+    return {
+      end: S + END,
+      hot: S + HOT + 0.3,
+      asleep: S + SLEEP,
+      /** When it's done in here */
+      out: S + GONE + 1.1,
+    };
   };
-  // A little above the toys on the floor in front of the hearth, looking down past them at it
-  const close = hearth.clone().add(new THREE.Vector3(0.38, 0.3, 0.72));
-  const closeLook = hearth.clone().add(new THREE.Vector3(-0.05, 0.02, -0.05));
-  const tour = () =>
-    new TimeSpline([
-      { t: 0.0, p: close.clone() },
-      { t: DASH + 0.1, p: close.clone().add(new THREE.Vector3(0.02, 0.01, 0.03)) },
-      { t: RUG + 0.3, p: new THREE.Vector3(0.55, 0.75, 0.35) },
-      { t: WALK + 0.4, p: new THREE.Vector3(0.5, 0.72, 0.85) },
-      { t: SIT + 0.2, p: new THREE.Vector3(0.95, 0.52, 0.74) },
-      { t: GONE + 0.2, p: new THREE.Vector3(1.02, 0.42, 0.52) },
-      { t: END + 0.6, p: hero.at.clone() },
-    ]);
-  const looks = () =>
-    new TimeSpline([
-      { t: 0.0, p: closeLook.clone() },
-      { t: DASH + 0.1, p: closeLook.clone() },
-      { t: RUG + 0.3, p: rug.clone() },
-      { t: WALK + 0.4, p: rug.clone().lerp(spot, 0.5) },
-      { t: SIT + 0.2, p: spot.clone().add(new THREE.Vector3(0, 0.06, 0)) },
-      { t: GONE + 0.2, p: spot.clone().add(new THREE.Vector3(0, 0.05, 0)) },
-      { t: END + 0.6, p: hero.look.clone() },
-    ]);
-  const camPath = tour();
-  const lookPath = looks();
+  const closeLook = hearth.clone().add(new THREE.Vector3(-0.05, 0.1, -0.05));
+  const fireCam = outOfArch.clone().add(new THREE.Vector3(0, 0.28, 0.75));
+  /** Which way it's watched from: from the room, toward the tree */
+  const watchFrom = new THREE.Vector3(0.45, 0, 2.9).sub(spot).setY(0).normalize();
+  const watchLift = new THREE.Vector3(0, 0.07, 0);
+  const runCam = rug.clone().lerp(spot, 0.5).addScaledVector(watchFrom, 1.75).setY(1.15);
+  const closeCam = spot
+    .clone()
+    .addScaledVector(watchFrom, 0.75)
+    .setY(spot.y + 0.3);
   const out = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: data.camera.fov };
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const view = (T: number, T_FLUE: number, T_ARCH: number) => {
-    if (T < T_ARCH) {
-      // Out under the arch, over the embers, turning to look back at the fire and the present
-      const k = smoother(T_FLUE, T_ARCH, T);
-      a.copy(flueBottom).add(new THREE.Vector3(0, 0.5, 0.02)).lerp(outOfArch, k);
-      a.y = THREE.MathUtils.lerp(flueBottom.y + 0.5, outOfArch.y, Math.min(1, k * 1.4));
-      b.copy(a).add(new THREE.Vector3(0, -1, -0.03)).lerp(closeLook, smooth(0.2, 1, k));
-      out.pos.copy(a);
-      out.look.copy(b);
-      out.fov = THREE.MathUtils.lerp(54, 46, k);
-    } else {
-      const s = T - S0;
-      const into = smoother(T_ARCH, T_ARCH + 1.4, T);
-      camPath.at(Math.max(0, s), a);
-      lookPath.at(Math.max(0, s), b);
-      out.pos.copy(outOfArch).lerp(a, into);
-      out.look.copy(closeLook).lerp(b, into);
-      out.fov = THREE.MathUtils.lerp(46, data.camera.fov * 0.82, smooth(END - 0.5, END + 0.6, s));
-    }
+  const shot = (T: number) => {
+    const s = T - S0;
+    const across = smoother(DASH - 0.2, WALK + 0.8, s);
+    const close = smoother(SLEEP - 0.9, GONE + 0.6, s);
+    out.pos
+      .copy(fireCam)
+      .lerp(closeLook, 0.25 * (1 - smoother(-1.2, 0.4, s)))
+      .lerp(runCam, across)
+      .lerp(closeCam, close);
+    out.look.copy(closeLook).lerp(tmp.copy(gift.position).add(watchLift), smooth(-0.3, 0.3, s));
+    out.fov = THREE.MathUtils.lerp(46, 40, close);
     out.pos.applyMatrix4(place);
     out.look.applyMatrix4(place);
     return out;
@@ -551,7 +617,10 @@ export async function buildRoom() {
     flicker.value = f * (0.35 + 0.65 * lvl);
     twinkle.value = 0.85 + 0.15 * Math.sin(T * 1.7);
     root.updateMatrixWorld(true);
-    fireWorld.value.copy(fireAt).add(new THREE.Vector3(0, 0.3, 0)).applyMatrix4(root.matrixWorld);
+    fireWorld.value
+      .copy(fireAt)
+      .add(new THREE.Vector3(0, 0.3, 0))
+      .applyMatrix4(root.matrixWorld);
     cars.forEach((car, k) => {
       const ang = T * 0.45 - k * 0.32;
       car.position.set(centre.x + Math.cos(ang) * data.train.a, centre.y, centre.z - Math.sin(ang) * data.train.b);
@@ -610,20 +679,40 @@ export async function buildRoom() {
     while (sparkClock > 0.05) {
       sparkClock -= 0.05;
       tmp.set(fireAt.x + (Math.random() - 0.5) * 0.4, fireAt.y + 0.15, fireAt.z + (Math.random() - 0.3) * 0.15);
-      const v = new THREE.Vector3((Math.random() - 0.5) * 0.1, 0.35 + Math.random() * 0.4, (Math.random() - 0.5) * 0.05);
+      const v = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.1,
+        0.35 + Math.random() * 0.4,
+        (Math.random() - 0.5) * 0.05
+      );
       sparks.emit(tmp, v, 0.8 + Math.random() * 0.9, 0.008 + Math.random() * 0.008, spark, 0);
     }
     if (dropAt >= 0 && T - dropAt < 3) {
       for (let k = 0; k < 3; k++) {
-        tmp.set(flueBottom.x + (Math.random() - 0.5) * 0.4, flueBottom.y + Math.random() * 0.6, flueBottom.z + (Math.random() - 0.5) * 0.18);
-        const v = new THREE.Vector3((Math.random() - 0.5) * 0.08, 1.6 + Math.random() * 1.4, (Math.random() - 0.5) * 0.05);
+        tmp.set(
+          flueBottom.x + (Math.random() - 0.5) * 0.4,
+          flueBottom.y + Math.random() * 0.6,
+          flueBottom.z + (Math.random() - 0.5) * 0.18
+        );
+        const v = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.08,
+          1.6 + Math.random() * 1.4,
+          (Math.random() - 0.5) * 0.05
+        );
         sparks.emit(tmp, v, 2.6, 0.01 + Math.random() * 0.01, spark.clone().multiplyScalar(2), 0.6);
       }
     }
     sparks.update(T, dt, glow, 0, identity);
     let i = 300;
     for (const mo of motes) {
-      tmp.copy(mo.at).add(new THREE.Vector3(Math.sin(T * 0.21 + mo.seed) * 0.15, Math.sin(T * 0.17 + mo.seed * 2) * 0.12, Math.cos(T * 0.19 + mo.seed) * 0.15));
+      tmp
+        .copy(mo.at)
+        .add(
+          new THREE.Vector3(
+            Math.sin(T * 0.21 + mo.seed) * 0.15,
+            Math.sin(T * 0.17 + mo.seed * 2) * 0.12,
+            Math.cos(T * 0.19 + mo.seed) * 0.15
+          )
+        );
       const bright = 0.25 + 0.25 * Math.sin(T * 1.3 + mo.seed * 5);
       tc.setRGB(1.0 * bright, 0.72 * bright, 0.38 * bright);
       glow.set(i++, tmp, 0.012, tc, 0, 0);
@@ -642,19 +731,12 @@ export async function buildRoom() {
     wisps.flush();
   };
 
-  const wIn = new THREE.Vector3(windowAt.x, windowAt.y - 0.02, windowAt.z + 0.55);
-  const wOut = new THREE.Vector3(windowAt.x, windowAt.y + 0.04, windowAt.z - 0.75);
   return {
     root,
     toTown,
     update,
     story,
-    view,
-    camera: { at: toTown(hero.at), look: toTown(hero.look), fov: data.camera.fov * 0.82 },
-    flue: { top: toTown(flueTop), bottom: toTown(flueBottom) },
-    arch: toTown(outOfArch),
-    windowIn: toTown(wIn),
-    windowOut: toTown(wOut),
+    shot,
     windowAt: toTown(windowAt),
     /** The present comes in at the top of the chimney, at this velocity (town metres) */
     drop(T: number, v: THREE.Vector3) {
@@ -692,6 +774,14 @@ export async function buildRoom() {
     /** The flue's lining: only wanted while you're in the chimney */
     shaft,
     /** Dev: where the present is and what it's doing */
-    state: () => ({ dropAt, landed, bumped, at: gift.position.toArray(), visible: gift.visible, shown: root.visible, S0 }),
+    state: () => ({
+      dropAt,
+      landed,
+      bumped,
+      at: gift.position.toArray(),
+      visible: gift.visible,
+      shown: root.visible,
+      S0,
+    }),
   };
 }

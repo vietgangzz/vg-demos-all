@@ -162,11 +162,11 @@ export const demos: Demo[] = [
     id: 'fairy-globe',
     title: 'Snow Globe',
     description:
-      'Rothenburg on Christmas Eve, under glass on a music box, Santa\'s sleigh circling over the roofs. Shake the phone and the snow goes up in a storm and settles back on the roofs; tilt it and the snow drifts; turn the globe and the music box plays Silent Night, the key turning in its side. Tap the glass and you go in: through it after the sleigh, round the tree in the square, down a chimney to a present by the fire, out of the window and back out to the shelf.',
+      "Rothenburg on Christmas Eve, under glass on a music box, Santa's sleigh circling over the roofs. Wind the key in its side and the music box plays Silent Night, and the tune takes you in: through the glass after the sleigh, round the tree in the square, onto a roof and down its chimney to a present by the fire, then back out of the window as the team takes off, and out to the shelf. Shake the phone for a snowstorm; tilt it and the snow drifts.",
     vi: {
       title: 'Quả cầu tuyết',
       description:
-        'Rothenburg đêm Giáng sinh trong quả cầu tuyết đặt trên hộp nhạc, xe tuần lộc của ông già Noel bay vòng trên mái nhà. Lắc máy là tuyết cuộn lên như bão rồi lắng xuống phủ mái nhà; nghiêng máy là tuyết trôi theo; xoay quả cầu là hộp nhạc chơi Silent Night, chìa vặn bên hông quay theo. Chạm vào kính để bay vào trong: xuyên qua kính theo xe tuần lộc, vòng quanh cây thông giữa quảng trường, chui xuống ống khói tới món quà bên lò sưởi, bay ra cửa sổ rồi trở về kệ.',
+        'Rothenburg đêm Giáng sinh trong quả cầu tuyết đặt trên hộp nhạc, xe tuần lộc của ông già Noel bay vòng trên mái nhà. Vặn chìa bên hông là hộp nhạc chơi Silent Night, và theo tiếng nhạc bạn bay vào trong: xuyên qua kính theo xe tuần lộc, vòng quanh cây thông giữa quảng trường, đáp lên mái nhà và chui xuống ống khói tới món quà bên lò sưởi, rồi lùi ra qua cửa sổ khi đoàn tuần lộc cất cánh, và trở về kệ. Lắc máy là bão tuyết; nghiêng máy là tuyết trôi theo.',
     },
     author: 'VG Team',
     component: FairyGlobe,
