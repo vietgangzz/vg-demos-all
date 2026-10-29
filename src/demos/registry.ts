@@ -16,6 +16,7 @@ import MetroOnboard from '@/demos/metro-onboard';
 import MetroTap from '@/demos/metro-tap';
 import PaperPlane from '@/demos/paper-plane';
 import PaperPlaneChat from '@/demos/paper-plane-chat';
+import RankUp from '@/demos/rank-up';
 import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
@@ -43,6 +44,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'rank-up',
+    title: 'Rank Up',
+    description:
+      "The last seconds of a league week, and the promotion that comes of it, where each league is a world of its own colour. Silver's board, deep blue, you fifth, the clock running out: everyone else draws back and your row lifts out and climbs, a leg springing out of it to boot each one above you out of the way, over the promotion line, to the top. A crown drops onto you and confetti bursts. Claim it, and Silver's badge comes down onto a ribbon of gold and winds itself up, faster and faster, until it rockets off up through the clouds, the camera climbing with it, into Gold's sky; it twinkles there as a star, then falls back as a blazing Gold meteor, and everything stops dead for a beat as it lands. GOLD LEAGUE drops in a letter at a time, the leagues line up and Gold's badge stamps down onto its place. Sounds made from scratch.",
+    vi: {
+      title: 'Thăng hạng',
+      description:
+        'Những giây cuối của tuần đấu và cú thăng hạng sau đó, mỗi giải là một thế giới màu riêng. Bảng xếp hạng giải Bạc xanh thẫm, bạn đứng thứ năm, đồng hồ sắp hết: cả bảng lùi lại, hàng của bạn nổi lên và leo dần, một cái chân mọc ra đá văng từng người phía trên, vượt vạch thăng hạng, lên đỉnh. Vương miện rơi xuống, pháo giấy nổ tung. Nhận thưởng, huy hiệu Bạc đáp xuống một dải vàng rồi tự xoay mỗi lúc một nhanh, cho tới khi vút lên xuyên qua mây, máy quay bay theo, vào bầu trời giải Vàng; nó lấp lánh thành một vì sao rồi rơi trở lại thành sao băng Vàng rực lửa, mọi thứ khựng lại một nhịp khi nó chạm đất. Dòng GOLD LEAGUE rơi xuống từng chữ, các giải xếp hàng và huy hiệu Vàng đóng dấu vào chỗ của mình. Âm thanh tự tổng hợp.',
+    },
+    author: 'VG Team',
+    component: RankUp,
+    hideClose: true,
+  },
   {
     id: 'daily-drop',
     title: 'Daily Drop',

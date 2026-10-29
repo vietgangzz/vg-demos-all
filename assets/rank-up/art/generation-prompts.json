@@ -1,0 +1,131 @@
+{
+  "tool": "built-in image_gen",
+  "badge_silhouette_iou": 1.0,
+  "assets": [
+    {
+      "id": "01",
+      "name": "league-gold.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-e7c1b2cf-522a-4976-b283-fb434b2ccb2c.png",
+      "prompt": "Premium 3D mobile game league badge, AAA quality, like a high-end ranked-mode emblem. Polished real metal with\ncrisp bevels and sharp specular highlights, deep glossy enamel, small cut gems that catch the light, a thin\nbright rim light along the top edges, soft ambient occlusion in the recesses. Bright, rich and clean, never\ndark, dirty or muddy. One single object, perfectly symmetrical, centred, facing straight at the camera\n(orthographic front view, no tilt), filling about 85% of the frame. Transparent background, no cast shadow,\nno floor, no glow halo outside the object. Original design, not based on any existing game or brand. No text,\nno letters, no numbers, no logo, no watermark.\n\nA heraldic shield badge in polished warm yellow gold with a thick rounded rim, its face a deep royal blue\nenamel. In the middle sits a big faceted gold five-pointed star with a round ruby set in its centre. A small\ngold crown with three pearl-tipped points sits on top of the shield, and two swept gold wings spread from its\nupper sides. Small sapphires are set along the rim. Triumphant, precious and celebratory.\n\nUse case: stylized-concept. Single isolated 1024x1024 square league badge, genuine transparent background. The whole shield, crown and BOTH wings must fit fully inside the frame, with a consistent clear margin on every side. All components form one connected, front-facing, bilaterally symmetric silhouette. Exactly three pearl-tipped crown points. No glow or colored haze outside the metal.",
+      "validation": "512x512 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        512,
+        512
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/league-gold.png"
+    },
+    {
+      "id": "02",
+      "name": "league-silver.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-d2e8a5d9-a5ea-4a98-bed6-1425282dce90.png",
+      "prompt": "Premium 3D mobile game league badge, AAA quality, like a high-end ranked-mode emblem. Polished real metal with\ncrisp bevels and sharp specular highlights, deep glossy enamel, small cut gems that catch the light, a thin\nbright rim light along the top edges, soft ambient occlusion in the recesses. Bright, rich and clean, never\ndark, dirty or muddy. One single object, perfectly symmetrical, centred, facing straight at the camera\n(orthographic front view, no tilt), filling about 85% of the frame. Transparent background, no cast shadow,\nno floor, no glow halo outside the object. Original design, not based on any existing game or brand. No text,\nno letters, no numbers, no logo, no watermark.\n\nThe same badge as the reference image, with exactly the same shield shape, crown, wings, proportions and\ncamera, remade in polished cool bright silver instead of gold. Its face is a steel blue enamel. In the\nmiddle, instead of the star, are two thick bevelled silver chevrons pointing upward. Small clear crystals\nare set along the rim instead of sapphires. Cleaner and plainer than the gold one, but still premium.\n\nUse case: precise-object-edit. EDIT THE ATTACHED GOLD BADGE IN PLACE. This attached image is both the edit target and exact geometry reference. Keep the canvas dimensions, exact outer alpha silhouette, all shield edges, crown and pearl shapes, every wing feather, all positions and proportions absolutely unchanged. Change ONLY materials and the internal face insignia: replace all gold metal with bright polished cool silver; replace royal-blue face enamel with steel-blue enamel; replace sapphires with colorless clear crystals. Remove central star and ruby and put exactly two bold stacked upward-pointing silver chevrons inside the same shield face. Retain original pearl tips. Do not redraw outer geometry, zoom, rotate, reposition, add outline, glow, floor or background. Preserve genuine transparency around the badge.",
+      "validation": "512x512 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        512,
+        512
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/league-silver.png"
+    },
+    {
+      "id": "03",
+      "name": "avatar-you.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-855e5b10-b309-486a-8a6c-789e58c5f63b.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a cheerful young person with short messy hair and a yellow hoodie, a confident grin. Backdrop: warm sunny yellow.\nUse case: stylized-concept. One 1024x1024 square avatar. A single perfect circular portrait touching the four midpoints of the square canvas, with genuine alpha transparency in the corners. All hair, head and shoulders clipped inside that circle. No border ring, no decoration outside the circle, no text. Friendly youthful original character, appealing polished stylized 3D portrait.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-you.png"
+    },
+    {
+      "id": "04",
+      "name": "avatar-mina.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-adde1b05-16fc-421f-8e70-2455d02a9b7b.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a young woman with a high black ponytail and a pink bomber jacket, a sly smile. Backdrop: bubblegum pink.\nUse case: stylized-concept. Generate a NEW distinct character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match its polished soft 3D render, big friendly eyes, lighting, face scale and circular composition. Replace the reference character, clothing and backdrop with the character and color specified above. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders remain clipped inside circle.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-mina.png"
+    },
+    {
+      "id": "05",
+      "name": "avatar-kenji.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-7566a51f-db5c-4215-ac2c-eaafd6d83874.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a young man with round glasses and a blue beanie, a calm smile. Backdrop: sky blue.\nUse case: stylized-concept. Generate a NEW distinct character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match its polished soft 3D render, big friendly eyes, lighting, face scale and circular composition. Replace the reference character, clothing and backdrop with the character and color specified above. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders remain clipped inside circle.",
+      "edit_prompt": "Edit this circular game avatar to improve character differentiation while preserving the exact circular framing, background color, transparency outside the circle, composition, lighting, material style and clothing. Keep the round glasses, blue beanie, calm smile and sky-blue backdrop. Redesign the face to be clearly distinct: fuller round cheeks, a broader nose, narrower gently almond-shaped dark eyes, short straight black hair tucked under the beanie, and smooth skin without freckles. A friendly young adult man, still stylized with big eyes. Do not introduce text, border rings or elements outside the circle. The circle still fills the square.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-kenji.png"
+    },
+    {
+      "id": "06",
+      "name": "avatar-lucia.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-23d6d66d-3b5a-48c0-84ca-829077594b3f.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a young woman with big curly brown hair and gold hoop earrings, laughing. Backdrop: tangerine orange.\nUse case: stylized-concept. Generate a NEW distinct character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match its polished soft 3D render, big friendly eyes, lighting, face scale and circular composition. Replace the reference character, clothing and backdrop with the character and color specified above. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders remain clipped inside circle.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-lucia.png"
+    },
+    {
+      "id": "07",
+      "name": "avatar-theo.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-ddf3db3b-47a9-46ab-b196-919aed7f54a9.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a freckled young man with ginger hair and a green cap, a friendly smile. Backdrop: fresh green.\nUse case: stylized-concept. Generate a NEW distinct young-adult character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match polished soft 3D materials, big friendly eyes, lighting, portrait scale and circular composition. Give this character their own recognizable face, not the reference person's face with accessories. Follow the specified hair, expression and clothing. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders clipped inside circle.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-theo.png"
+    },
+    {
+      "id": "08",
+      "name": "avatar-ama.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-01cdc122-37fd-4b04-8451-5310e4001917.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a young woman with short natural hair and a purple scarf, a warm smile. Backdrop: lavender.\nUse case: stylized-concept. Generate a NEW distinct young-adult character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match polished soft 3D materials, big friendly eyes, lighting, portrait scale and circular composition. Give this character their own recognizable face, not the reference person's face with accessories. Follow the specified hair, expression and clothing. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders clipped inside circle.",
+      "edit_prompt": "Edit this circular game avatar to improve character differentiation while preserving the exact circular framing, background color, transparency outside the circle, composition, lighting, material style and clothing. Keep the purple scarf, lavender backdrop and warm smile. Correct the hairstyle to SHORT NATURAL TIGHT COILY HAIR, a neat rounded cropped afro rather than loose wavy bangs. Give her a clearly distinct young-adult woman's face: rich deep-brown skin, broad soft nose, full lips and round warm dark eyes. No freckles. Keep the premium friendly cartoon rendering. Do not introduce text, border rings or elements outside the circle. The circle still fills the square.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-ama.png"
+    },
+    {
+      "id": "09",
+      "name": "avatar-rafael.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-ee64a918-e483-4b13-8394-f99ada08edff.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a young man with a short beard and a teal headband, a big grin. Backdrop: teal.\nUse case: stylized-concept. Generate a NEW distinct young-adult character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match polished soft 3D materials, big friendly eyes, lighting, portrait scale and circular composition. Give this character their own recognizable face, not the reference person's face with accessories. Follow the specified hair, expression and clothing. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders clipped inside circle.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-rafael.png"
+    },
+    {
+      "id": "10",
+      "name": "avatar-priya.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-0037e305-8e92-4825-9e94-070240057692.png",
+      "prompt": "Round profile avatar of an original cartoon character: a stylised 3D render with soft rounded shapes, big\nfriendly eyes, a warm smile and clean subsurface skin shading, like a premium mobile game's player portrait.\nHead and shoulders, centred, looking at the camera, cropped inside a perfect circle that fills the whole\nimage. The circle's backdrop is a soft single-colour gradient in the colour given below. Everything outside\nthe circle is transparent. No text, no letters, no logo, no watermark, no border ring.\n\nThe character: a young woman with a long braid and a coral sweater, a soft smile. Backdrop: coral.\nUse case: stylized-concept. Generate a NEW distinct young-adult character avatar. Attached image is STYLE AND FRAMING REFERENCE ONLY, not character identity. Match polished soft 3D materials, big friendly eyes, lighting, portrait scale and circular composition. Give this character their own recognizable face, not the reference person's face with accessories. Follow the specified hair, expression and clothing. 1024x1024 square canvas. Circle fills the canvas, touching each side at midpoint; genuine transparent corners, no border ring, hair and shoulders clipped inside circle.",
+      "edit_prompt": "Edit this circular game avatar to improve character differentiation while preserving the exact circular framing, background color, transparency outside the circle, composition, lighting, material style and clothing. Keep the long braid, coral sweater, coral backdrop and soft smile. Give this young adult woman a distinct face: warm medium-brown skin, long straight black hair gathered into the braid, a graceful oval face, softly arched brows and large almond-shaped dark eyes. No freckles. Same soft friendly 3D cartoon style. Do not introduce text, border rings or elements outside the circle. The circle still fills the square.",
+      "validation": "256x256 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-priya.png"
+    }
+  ],
+  "badge_alpha_identical": true,
+  "postprocessing": "Badges share the intersection of their generated alpha masks to ensure identical outlines, then trim, resize to fit 470x470, and pad to 512x512. Avatars resize to 256x256."
+}
