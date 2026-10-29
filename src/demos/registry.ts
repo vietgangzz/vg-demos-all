@@ -21,6 +21,7 @@ import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
 import WaterDragon from '@/demos/water-dragon';
+import WeeklyGacha from '@/demos/weekly-gacha';
 import Weather from '@/demos/weather';
 // Kept last: imported first, Market Bag crashed on opening (a worklet failing to carry its Skia
 // buffers to the UI thread). Why the order matters isn't known yet.
@@ -44,6 +45,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'weekly-gacha',
+    title: 'Weekly Gacha',
+    description:
+      "Your week as a gacha machine, in Rank Up's world: a glossy machine with a glass dome heaped with capsules, five slots waiting at the top. Drag round to turn its knob (or tap the button): it ratchets round, the machine rattles, and with a clunk a capsule drops out of the chute and bounces. It leaps up into the middle and shakes harder and harder as specks of light are pulled into it, until it pops: the top flies off, light blooms, and a prize rises out of it turning, a solid thing rendered in Blender, your XP, streak, lessons and time counting up under it. Next, and it flies up into its slot. The fifth capsule is gold: it shakes longest, and when it pops Gold's world floods out with confetti, and the whole week is laid out on a plate.",
+    vi: {
+      title: 'Gacha tuần',
+      description:
+        'Tuần học của bạn là một máy gacha, trong thế giới của Thăng hạng: máy bóng loáng, mái kính đầy capsule, năm ô trống chờ phía trên. Kéo vòng quanh để vặn núm (hoặc bấm nút): núm kêu tách tách, máy rung lên, rồi cạch một tiếng, một viên capsule rơi ra khỏi máng và nảy lên. Nó bật lên giữa màn hình, rung mỗi lúc một mạnh khi những đốm sáng bị hút vào, cho tới khi bật nắp: nửa trên bay vụt đi, ánh sáng loé ra, và một món quà 3D render bằng Blender xoay tròn bay lên, con số XP, chuỗi ngày, bài học và thời gian đếm lên bên dưới. Bấm tiếp, món quà bay về ô của nó. Viên thứ năm bằng vàng: rung lâu nhất, và khi bật ra thì thế giới Vàng tràn ngập kèm pháo giấy, rồi cả tuần của bạn bày ra trên một tấm kính.',
+    },
+    author: 'VG Team',
+    component: WeeklyGacha,
+    hideClose: true,
+  },
   {
     id: 'rank-up',
     title: 'Rank Up',
