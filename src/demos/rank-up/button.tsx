@@ -35,6 +35,22 @@ export const LOOKS = {
     ink: TONE.goldPale,
     glint: 'rgba(255, 230, 170, 0.35)',
   },
+  /** A pumpkin's orange on a deep rind edge, lettered in burnt brown (Spooky Progress) */
+  pumpkin: {
+    face: 'linear-gradient(180deg, #FFC070 0%, #FF8A24 50%, #E8600E 100%)',
+    lip: '#7A2A04',
+    rim: 'rgba(255, 232, 190, 0.85)',
+    ink: '#3A1200',
+    glint: 'rgba(255,255,255,0.7)',
+  },
+  /** A crypt's dark plum, lettered in bone (Spooky Progress) */
+  crypt: {
+    face: 'linear-gradient(180deg, #3B2650 0%, #23143A 100%)',
+    lip: '#0E0718',
+    rim: 'rgba(241, 230, 204, 0.4)',
+    ink: '#F1E6CC',
+    glint: 'rgba(255,255,255,0.25)',
+  },
   /** Warm pearl on a gold edge, lettered in burnt orange */
   pearl: {
     face: 'linear-gradient(180deg, #FFFFFF 0%, #FFF0D2 100%)',

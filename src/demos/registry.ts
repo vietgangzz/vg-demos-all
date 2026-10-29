@@ -20,6 +20,7 @@ import RankUp from '@/demos/rank-up';
 import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
+import SpookyProgress from '@/demos/spooky-progress';
 import WeekWrapped from '@/demos/week-wrapped';
 import WaterDragon from '@/demos/water-dragon';
 import WeeklyGacha from '@/demos/weekly-gacha';
@@ -46,6 +47,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'spooky-progress',
+    title: 'Spooky Progress',
+    description:
+      "A lesson's progress bar, Halloween edition, five ways at once, stacked down a graveyard night under a big low moon, fog rolling along the bottom, dewy cobwebs in the corners and spiders (rendered in Blender) letting themselves down over it all on their threads. The bars slide in from either side, and five right answers fill them a fifth at a time, each a beat behind the one above so every answer ripples down the stack. A corked test tube fills with a glowing brew as ingredients splash in; five pumpkins on a vine are carved and lit in turn; a ghost glides along a thread of spider silk lighting lanterns; a spark burns along a fuse to a pumpkin bomb; slime oozes along a hollow bone, dripping. Then they go off one after another, top to bottom: the cork shoots out with smoke, bats and ghosts, the pumpkins flare into ghostly green fire, a spider drops in on the ghost and gets BOOed, the bomb bursts into sweets, and the slime heaves up into a goggling blob and splats all over the screen. LESSON COMPLETE, and the spiders shoot back up out of sight. Every sound made from scratch.",
+    vi: {
+      title: 'Thanh tiến độ Halloween',
+      description:
+        'Thanh tiến độ của một bài học, phiên bản Halloween, năm kiểu cùng lúc, xếp dọc trên nền nghĩa địa đêm trăng, sương mù trôi dưới chân, mạng nhện đọng sương ở hai góc và những con nhện (render bằng Blender) thả tơ đu đưa trên tất cả. Các thanh trượt vào từ hai bên, năm câu trả lời đúng lấp đầy mỗi lần một phần năm, thanh dưới chậm hơn thanh trên một nhịp nên mỗi câu đúng chạy thành sóng dọc xuống. Ống nghiệm nút bần đầy dần thuốc phát sáng khi nguyên liệu rơi vào; năm quả bí ngô lần lượt được khắc mặt và thắp nến; con ma lướt trên sợi tơ nhện thắp từng đèn lồng; tia lửa cháy dọc ngòi tới quả bom bí ngô; nhầy xanh bò dọc khúc xương rỗng, nhỏ giọt. Rồi lần lượt nổ dây chuyền từ trên xuống: nút bần bắn vèo cùng khói, dơi và hồn ma, bí ngô bùng lửa ma xanh, nhện thả xuống bị con ma hù BOO, bom nổ tung ra kẹo, nhầy phình thành quái vật mắt lồi rồi bắn khắp màn hình. LESSON COMPLETE, và lũ nhện rút tơ chạy mất. Mọi âm thanh đều tự tổng hợp.',
+    },
+    author: 'VG Team',
+    component: SpookyProgress,
+    hideClose: true,
+  },
   {
     id: 'week-wrapped',
     title: 'Week Wrapped',
