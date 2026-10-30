@@ -1,0 +1,129 @@
+{
+  "tool": "built-in image_gen",
+  "badge_silhouette_iou": 1.0,
+  "assets": [
+    {
+      "id": "01",
+      "name": "league-gold.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-e7c1b2cf-522a-4976-b283-fb434b2ccb2c.png",
+      "prompt": "Premium 3D mobile game league badge, AAA quality, like a high-end ranked-mode emblem. Polished real metal with\ncrisp bevels and sharp specular highlights, deep glossy enamel, small cut gems that catch the light, a thin\nbright rim light along the top edges, soft ambient occlusion in the recesses. Bright, rich and clean, never\ndark, dirty or muddy. One single object, perfectly symmetrical, centred, facing straight at the camera\n(orthographic front view, no tilt), filling about 85% of the frame. Transparent background, no cast shadow,\nno floor, no glow halo outside the object. Original design, not based on any existing game or brand. No text,\nno letters, no numbers, no logo, no watermark.\n\nA heraldic shield badge in polished warm yellow gold with a thick rounded rim, its face a deep royal blue\nenamel. In the middle sits a big faceted gold five-pointed star with a round ruby set in its centre. A small\ngold crown with three pearl-tipped points sits on top of the shield, and two swept gold wings spread from its\nupper sides. Small sapphires are set along the rim. Triumphant, precious and celebratory.\n\nUse case: stylized-concept. Single isolated 1024x1024 square league badge, genuine transparent background. The whole shield, crown and BOTH wings must fit fully inside the frame, with a consistent clear margin on every side. All components form one connected, front-facing, bilaterally symmetric silhouette. Exactly three pearl-tipped crown points. No glow or colored haze outside the metal.",
+      "validation": "512x512 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        512,
+        512
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/league-gold.png"
+    },
+    {
+      "id": "02",
+      "name": "league-silver.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-d2e8a5d9-a5ea-4a98-bed6-1425282dce90.png",
+      "prompt": "Premium 3D mobile game league badge, AAA quality, like a high-end ranked-mode emblem. Polished real metal with\ncrisp bevels and sharp specular highlights, deep glossy enamel, small cut gems that catch the light, a thin\nbright rim light along the top edges, soft ambient occlusion in the recesses. Bright, rich and clean, never\ndark, dirty or muddy. One single object, perfectly symmetrical, centred, facing straight at the camera\n(orthographic front view, no tilt), filling about 85% of the frame. Transparent background, no cast shadow,\nno floor, no glow halo outside the object. Original design, not based on any existing game or brand. No text,\nno letters, no numbers, no logo, no watermark.\n\nThe same badge as the reference image, with exactly the same shield shape, crown, wings, proportions and\ncamera, remade in polished cool bright silver instead of gold. Its face is a steel blue enamel. In the\nmiddle, instead of the star, are two thick bevelled silver chevrons pointing upward. Small clear crystals\nare set along the rim instead of sapphires. Cleaner and plainer than the gold one, but still premium.\n\nUse case: precise-object-edit. EDIT THE ATTACHED GOLD BADGE IN PLACE. This attached image is both the edit target and exact geometry reference. Keep the canvas dimensions, exact outer alpha silhouette, all shield edges, crown and pearl shapes, every wing feather, all positions and proportions absolutely unchanged. Change ONLY materials and the internal face insignia: replace all gold metal with bright polished cool silver; replace royal-blue face enamel with steel-blue enamel; replace sapphires with colorless clear crystals. Remove central star and ruby and put exactly two bold stacked upward-pointing silver chevrons inside the same shield face. Retain original pearl tips. Do not redraw outer geometry, zoom, rotate, reposition, add outline, glow, floor or background. Preserve genuine transparency around the badge.",
+      "validation": "512x512 srgba 4.0 alpha_min=0 alpha_max=1",
+      "size": [
+        512,
+        512
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/league-silver.png"
+    },
+    {
+      "id": "03",
+      "name": "avatar-you.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-e24d7bfe-0672-4418-8f5c-b1dfbd07e8b5.png",
+      "prompt": "Use case: identity-preserve and style-transfer. Edit the attached cartoon profile avatar. Preserve this same recognizable youthful fictional character: tousled short brown hair, warm brown eyes, subtle freckles, friendly confident grin, premium soft rounded 3D animation rendering. Change the pose decisively to a STRICTLY STRAIGHT-ON FRONTAL PORTRAIT: head upright with zero tilt, zero yaw and zero roll, eyes level and looking directly into camera, nose and chin on the vertical centerline, both ears equally visible, shoulders level and square to camera. Do not retain the original tilted three-quarter pose. Change clothing to tasteful futuristic sci-fi techwear: a yellow-and-graphite structured technical jacket with a neat raised collar, subtle armored shoulder panels and thin restrained cyan luminous seams. High quality clean materials, approachable futuristic game-player look; no helmet, mask or eyewear obstructing the face. Keep face large and readable at small avatar size. Head and shoulders perfectly centered inside a perfect circular backdrop filling the square, soft sunny golden-yellow gradient with a subtle cool accent near the bottom. Keep all character details inside the circle. Everything outside the circle must be genuinely transparent with clean smooth edges, no stray pixels. No border ring, no writing, no numbers, no logos, no watermark, no UI graphics. One square avatar only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-you.png"
+    },
+    {
+      "id": "04",
+      "name": "avatar-mina.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-f407e3bd-2a00-4b33-acc9-2ea705c0cd06.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Young woman with a high black ponytail. Pink and graphite futuristic bomber-style armored jacket, sleek narrow angular black sunglasses, self-assured closed-mouth smirk. Bubblegum-pink circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-mina.png"
+    },
+    {
+      "id": "05",
+      "name": "avatar-kenji.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-d03a2fe6-9876-4052-acfc-cbbda0a7d980.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Young man with short straight black hair and a blue beanie, round face. Sky-blue and graphite technical jacket, ROUND BLACK SUNGLASSES replacing his clear round glasses, cool composed closed-mouth expression. Sky-blue circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-kenji.png"
+    },
+    {
+      "id": "06",
+      "name": "avatar-lucia.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-bc51ac92-b35a-4cd7-bf0d-104595b4df39.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Young woman with voluminous curly brown hair and gold hoop earrings. Tangerine and graphite futuristic armored jacket, bold black cat-eye sunglasses, charismatic confident smirk. Tangerine-orange circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-lucia.png"
+    },
+    {
+      "id": "07",
+      "name": "avatar-theo.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-ae7e38b4-aef8-4865-bcdf-0594337d4934.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Freckled young man with ginger hair and a green cap. Fresh-green and graphite futuristic armored jacket, sporty black sunglasses, confident slightly mischievous closed-mouth grin. Fresh-green circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-theo.png"
+    },
+    {
+      "id": "08",
+      "name": "avatar-ama.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-831d1862-61e8-48e6-92d1-622b0f349b93.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Young woman with deep warm-brown skin and short natural tightly coiled hair, purple scarf integrated into a lavender-and-graphite futuristic high-collar jacket. Geometric black sunglasses, poised cool closed-mouth smile. Lavender circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-ama.png"
+    },
+    {
+      "id": "09",
+      "name": "avatar-rafael.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-c652a2bf-4cbd-473e-b2e0-c171e4d85691.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Young man with a short beard and a teal headband. Teal and graphite futuristic armored jacket, black aviator sunglasses, bold confident smirk. Teal circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-rafael.png"
+    },
+    {
+      "id": "10",
+      "name": "avatar-priya.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-543b9ed7-5c2e-4537-9f72-3a19e89e6c56.png",
+      "prompt": "Use case: identity-preserve + style-transfer. Create one finished futuristic game avatar. IMAGE 1 is the approved STYLE, MATERIALS, CLOTHING DESIGN LANGUAGE and STRICT FRONTAL POSE reference. IMAGE 2 is this specific CHARACTER IDENTITY reference. Use image 2's person, hairstyle and skin tone, NOT image 1's person. Match image 1's polished soft 3D animated rendering, structured colored-and-graphite sci-fi jacket, subtle cyan emissive seams, clean detailed materials and portrait scale.\nCharacter specification: Young woman with medium-brown skin and long black braid, coral-and-graphite futuristic technical jacket over a coral knit layer. Sleek black rectangular sunglasses, calm confident closed-mouth expression. Coral circular gradient backdrop.\nMandatory pose and attitude: head upright, zero tilt, zero yaw or roll, perfectly frontal, both ears equally visible where hair permits, nose and chin on canvas vertical centerline, shoulders level facing camera. Cool confident expression, no broad toothy smile. Wear DARK BLACK SUNGLASSES with opaque tinted lenses over both eyes, small soft highlights only, not a full-face visor. Keep the distinct hair/headwear and color identity from the description. Attractive friendly young-adult character with a composed badass attitude, premium mobile game portrait, not photorealistic human photography or anime drawing.\nSingle square image: head and shoulders inside a perfect circle filling the canvas; matching-color soft gradient inside the circle. Outside the circle genuinely transparent, all hair and clothing clipped inside, clean antialiased edges. No border ring, text, logos, numbers, watermark or interface. Output one image only.",
+      "validation": "256x256 RGBA PNG; alpha range 0 to 1; copied file hash verified",
+      "size": [
+        256,
+        256
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up/art/avatar-priya.png"
+    }
+  ],
+  "badge_alpha_identical": true,
+  "postprocessing": "Badges share the intersection of their generated alpha masks to ensure identical outlines, then trim, resize to fit 470x470, and pad to 512x512. Avatars resize to 256x256.",
+  "avatar_style": "User-approved futuristic 3D front-facing portraits; seven other players wear black sunglasses and confident expressions; avatar-you uses the approved yellow reference."
+}

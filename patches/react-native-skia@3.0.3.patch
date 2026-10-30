@@ -1,0 +1,58 @@
+diff --git a/cpp/rnskia/RNDawnWindowContext.cpp b/cpp/rnskia/RNDawnWindowContext.cpp
+index 2f1c37f8cd064061eb1a9c4cf14f6e05284626ed..2e6dcdb50899ba38d9786d3cefdabf878d913631 100644
+--- a/cpp/rnskia/RNDawnWindowContext.cpp
++++ b/cpp/rnskia/RNDawnWindowContext.cpp
+@@ -25,17 +25,29 @@ bool DawnWindowContext::presentRecordings(
+     return false;
+   }
+   // The surface only names the replay target; wrapping the swapchain texture
+-  // records nothing on the window's recorder.
++  // records nothing. It still registers a device with the recorder it's
++  // wrapped on, and a recorder only drops the devices it tracks when it's
++  // snapped, so it's wrapped on a recorder of the window's own that's snapped
++  // after every frame (the shared one is never snapped here, and its list of
++  // devices, scanned whenever one is destroyed, grew a frame at a time).
++  if (!_presentRecorder) {
++    _presentRecorder = DawnContext::getInstance().makeRecorder();
++    if (!_presentRecorder) {
++      return false;
++    }
++  }
+   auto backendTex = skgpu::graphite::BackendTextures::MakeDawn(texture.Get());
+   SkSurfaceProps surfaceProps;
+   auto surface = SkSurfaces::WrapBackendTexture(
+-      _recorder, backendTex, DawnUtils::viewColorSpace(_useP3ColorSpace),
+-      &surfaceProps);
++      _presentRecorder.get(), backendTex,
++      DawnUtils::viewColorSpace(_useP3ColorSpace), &surfaceProps);
+   if (!surface) {
+     return false;
+   }
+   bool success =
+       DawnContext::getInstance().insertRecordings(recordings, surface.get());
++  surface.reset();
++  _presentRecorder->snap();
+ #ifdef __APPLE__
+   dawn::native::metal::WaitForCommandsToBeScheduled(_device.Get());
+ #endif
+diff --git a/cpp/rnskia/RNDawnWindowContext.h b/cpp/rnskia/RNDawnWindowContext.h
+index a17c995206b40c820a603df51fb3c873f02bde2a..a882bd910b6102dd12e6c2898c43e0ef05fb4569 100644
+--- a/cpp/rnskia/RNDawnWindowContext.h
++++ b/cpp/rnskia/RNDawnWindowContext.h
+@@ -9,6 +9,7 @@
+ 
+ #include "include/core/SkColorSpace.h"
+ 
++#include <memory>
+ #include <vector>
+ 
+ #include "include/gpu/graphite/BackendTexture.h"
+@@ -164,6 +165,8 @@ private:
+   }
+ 
+   skgpu::graphite::Recorder *_recorder;
++  // Wraps the swapchain texture for presentRecordings(), snapped every frame
++  std::unique_ptr<skgpu::graphite::Recorder> _presentRecorder;
+   // TODO: keep device in DawnContext? Do we need it for resizing?
+   wgpu::Device _device;
+   wgpu::Surface _surface;

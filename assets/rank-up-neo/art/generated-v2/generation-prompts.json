@@ -1,0 +1,263 @@
+{
+  "tool": "built-in image_gen",
+  "postprocessing": "Dimension export; white title contours converted from clean luminance to alpha; button frames packed to specified sizes. Existing files preserved.",
+  "assets": [
+    {
+      "name": "league-silver.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-aaf6af52-480e-4e0f-a55c-4aed471eb930.png",
+      "prompt": "Use case: stylized-concept. Create a premium SCI-FI LEAGUE RANK EMBLEM using the attached screenshot ONLY as a material-and-lighting mood reference. The relevant mood is the glossy near-black light-cycle bodywork with beautifully smooth curved surfaces and extremely crisp white-hot colored light strips. Ignore all browser chrome, text, people and vehicles in that screenshot. Do NOT include a bike, wheels, rider, screenshot, UI or words.\nArt direction: cinematic light-sculpture, pure black glossy monocoque shell, fluid continuous curves, understated layered engineering. The object is defined mostly by clean glowing paths and restrained cyan/amber reflections over its black surface. Minimal, elegant, fast, powerful. Broad calm black areas with very thin precise recessed luminous lines; white-hot cores taper into saturated light color. Subtle dark metallic edge, never a chunky silver/gold frame. Rich reflective black, NOT textured matte plastic. Avoid crystalline faceting, triangular jewel planes, gemstones, ornate medieval decoration, jewelry, bulky bevels, screws, rivets, greebles, segmented armor clutter and gaming-toy styling. Keep outer glow extremely tight; no fog or bloom haze.\nSingle standalone connected solid object, no floating fragments, no holes through its silhouette. Strict symmetrical orthographic FRONT view, centered square 1024x1024 PNG, clear transparent margins of 8-10% on all sides, entire shape contained. True transparent background; black body remains fully opaque. No floor, no cast shadow, no pedestal, no scene, no stars, no text, no numbers, no letters, no watermark. Clean shape readable at 100px.\nSILVER RANK: a compact softly rounded hexagonal / shield-like black monocoque plate, with a single beautifully continuous cyan-white contour light just inside the edge. In its dark central face, exactly TWO stacked upward chevrons formed only from sleek inlaid cyan-white light strips. Chevrons have smooth radius joins, not chunky triangular metal arrows. A restrained inner concentric arc near the lower edge suggests an energy core integrated in the solid face, not a separate wheel. Main emissive color ice cyan #33E6FF with bright white core. Almost all physical body is glossy black; silver only appears as a subtle edge reflection. Sophisticated minimal cinematic sci-fi.",
+      "size": [
+        1024,
+        1024
+      ],
+      "alpha_range": [
+        0.0,
+        1.0
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated-v2/league-silver.png"
+    },
+    {
+      "name": "league-gold.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-e2ad1df4-4ccf-4ab4-a79f-20b88f1a1aed.png",
+      "prompt": "Use case: stylized-concept. Create a premium SCI-FI LEAGUE RANK EMBLEM using the attached screenshot ONLY as a material-and-lighting mood reference. The relevant mood is the glossy near-black light-cycle bodywork with beautifully smooth curved surfaces and extremely crisp white-hot colored light strips. Ignore all browser chrome, text, people and vehicles in that screenshot. Do NOT include a bike, wheels, rider, screenshot, UI or words.\nArt direction: cinematic light-sculpture, pure black glossy monocoque shell, fluid continuous curves, understated layered engineering. The object is defined mostly by clean glowing paths and restrained cyan/amber reflections over its black surface. Minimal, elegant, fast, powerful. Broad calm black areas with very thin precise recessed luminous lines; white-hot cores taper into saturated light color. Subtle dark metallic edge, never a chunky silver/gold frame. Rich reflective black, NOT textured matte plastic. Avoid crystalline faceting, triangular jewel planes, gemstones, ornate medieval decoration, jewelry, bulky bevels, screws, rivets, greebles, segmented armor clutter and gaming-toy styling. Keep outer glow extremely tight; no fog or bloom haze.\nSingle standalone connected solid object, no floating fragments, no holes through its silhouette. Strict symmetrical orthographic FRONT view, centered square 1024x1024 PNG, clear transparent margins of 8-10% on all sides, entire shape contained. True transparent background; black body remains fully opaque. No floor, no cast shadow, no pedestal, no scene, no stars, no text, no numbers, no letters, no watermark. Clean shape readable at 100px.\nGOLD RANK: a taller elegant glossy-black shield monocoque, with two low sweeping aerodynamic black side fins connected smoothly into the shield, like curved futuristic bodywork rather than bird feathers. One graceful continuous amber-white contour light follows shield and side fin edges. Central dark face contains exactly THREE stacked upward chevrons formed from sleek inlaid warm amber-white light strips, with a small three-point angular crown drawn as a fine continuous LIGHT SYMBOL above them, flush inside the face. No physical jeweled crown or gemstone. Emissive gold #FFC24A with white-hot cores, black shell with subtle amber reflections, never solid yellow metal. More majestic than Silver through silhouette and light composition, not decoration. Fins must remain inside the canvas with generous margin.",
+      "size": [
+        1024,
+        1024
+      ],
+      "alpha_range": [
+        0.0,
+        1.0
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated-v2/league-gold.png"
+    },
+    {
+      "name": "titles.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-e4778805-9b5e-49a6-892e-4e0b2573737d.png",
+      "prompt": "Design a very clean neon-line typography atlas on SOLID PURE BLACK #000000. 2048x1024 landscape. Two lines of text only: SILVER LEAGUE above, GOLD LEAGUE below. Exact spelling, all uppercase. Simple original extended geometric sci-fi letterforms, squared corners with small tight radii. Every letter is drawn using TWO very thin pure WHITE luminous contour lines, and its stroke interiors are BLACK/EMPTY. Thin hollow double-line construction, NOT a solid filled font. NO large glowing letter bodies. Near-zero bloom, clean bright white tube edges. All twelve top-row letters and ten bottom-row letters are CLEARLY SEPARATED: at least40px completely black empty gap between adjacent letters and100px for the word space. No touching light. Same cap height150px both rows, upper baseline y=370 and lower baseline y=830, centered horizontally with ample margins. Flat orthographic, crisp precise production typography, absolutely NO noise, dust, smoke, splatter, artifacts, gradients, reflections, border, decoration or objects. Only white thin double outlines on perfectly pure uniform black. This is a mask-ready typography production image: black must be exactly zero in all empty areas and inside the hollow strokes. No text other than SILVER LEAGUE and GOLD LEAGUE.",
+      "size": [
+        2048,
+        1024
+      ],
+      "alpha_range": [
+        0.0,
+        1.0
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated-v2/titles.png",
+      "glyphs": [
+        {
+          "character": "S",
+          "row": "SILVER LEAGUE",
+          "x": 94,
+          "y": 254,
+          "width": 127,
+          "height": 142
+        },
+        {
+          "character": "I",
+          "row": "SILVER LEAGUE",
+          "x": 267,
+          "y": 254,
+          "width": 27,
+          "height": 142
+        },
+        {
+          "character": "L",
+          "row": "SILVER LEAGUE",
+          "x": 335,
+          "y": 254,
+          "width": 111,
+          "height": 142
+        },
+        {
+          "character": "V",
+          "row": "SILVER LEAGUE",
+          "x": 460,
+          "y": 254,
+          "width": 141,
+          "height": 142
+        },
+        {
+          "character": "E",
+          "row": "SILVER LEAGUE",
+          "x": 638,
+          "y": 254,
+          "width": 117,
+          "height": 142
+        },
+        {
+          "character": "R",
+          "row": "SILVER LEAGUE",
+          "x": 794,
+          "y": 254,
+          "width": 123,
+          "height": 142
+        },
+        {
+          "character": "L",
+          "row": "SILVER LEAGUE",
+          "x": 1046,
+          "y": 254,
+          "width": 113,
+          "height": 142
+        },
+        {
+          "character": "E",
+          "row": "SILVER LEAGUE",
+          "x": 1193,
+          "y": 254,
+          "width": 116,
+          "height": 142
+        },
+        {
+          "character": "A",
+          "row": "SILVER LEAGUE",
+          "x": 1343,
+          "y": 254,
+          "width": 146,
+          "height": 142
+        },
+        {
+          "character": "G",
+          "row": "SILVER LEAGUE",
+          "x": 1519,
+          "y": 254,
+          "width": 128,
+          "height": 142
+        },
+        {
+          "character": "U",
+          "row": "SILVER LEAGUE",
+          "x": 1685,
+          "y": 254,
+          "width": 120,
+          "height": 142
+        },
+        {
+          "character": "E",
+          "row": "SILVER LEAGUE",
+          "x": 1842,
+          "y": 254,
+          "width": 116,
+          "height": 142
+        },
+        {
+          "character": "G",
+          "row": "GOLD LEAGUE",
+          "x": 201,
+          "y": 633,
+          "width": 134,
+          "height": 142
+        },
+        {
+          "character": "O",
+          "row": "GOLD LEAGUE",
+          "x": 373,
+          "y": 633,
+          "width": 141,
+          "height": 142
+        },
+        {
+          "character": "L",
+          "row": "GOLD LEAGUE",
+          "x": 551,
+          "y": 633,
+          "width": 111,
+          "height": 142
+        },
+        {
+          "character": "D",
+          "row": "GOLD LEAGUE",
+          "x": 692,
+          "y": 633,
+          "width": 125,
+          "height": 142
+        },
+        {
+          "character": "L",
+          "row": "GOLD LEAGUE",
+          "x": 939,
+          "y": 633,
+          "width": 112,
+          "height": 142
+        },
+        {
+          "character": "E",
+          "row": "GOLD LEAGUE",
+          "x": 1084,
+          "y": 633,
+          "width": 116,
+          "height": 142
+        },
+        {
+          "character": "A",
+          "row": "GOLD LEAGUE",
+          "x": 1235,
+          "y": 633,
+          "width": 145,
+          "height": 142
+        },
+        {
+          "character": "G",
+          "row": "GOLD LEAGUE",
+          "x": 1410,
+          "y": 633,
+          "width": 130,
+          "height": 142
+        },
+        {
+          "character": "U",
+          "row": "GOLD LEAGUE",
+          "x": 1578,
+          "y": 633,
+          "width": 119,
+          "height": 142
+        },
+        {
+          "character": "E",
+          "row": "GOLD LEAGUE",
+          "x": 1734,
+          "y": 633,
+          "width": 116,
+          "height": 142
+        }
+      ]
+    },
+    {
+      "name": "buttons.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-c2a90b8b-3537-447f-ae97-b8d80439dd8a.png",
+      "prompt": "Use case: stylized-concept / game UI sprite atlas. Output one 2048x1536 landscape PNG with genuine transparent background and EXACTLY THREE separate EMPTY button frames. Straight-on flat orthographic front view, no perspective. Cohesive original cinematic sci-fi light-grid style: smoked black glass, precise inlaid emissive edge lines.\nCoordinate layout for the 2048x1536 canvas, important:\n1. TOP wide horizontal frame: x=224 to1824, y=120 to440, size1600x320.\n2. MIDDLE wide horizontal frame: x=224 to1824, y=608 to928, same1600x320.\n3. BOTTOM LEFT small square frame: x=224 to544, y=1096 to1416, size320x320.\nThese coordinates are placement guides ONLY, do not draw labels, guides, dimensions or numerals. Lots of completely empty transparent space separates the three objects.\nTop: dark smoked glass slab #0B1014, slightly translucent. All four corners chamfered at45 degrees. Crisp double CYAN light outline #33E6FF with white-hot core, a bright outer line and fainter thin inner line. Near EACH end cap, one short brighter horizontal light bar along bottom edge and one small notch in top edge. ALL decorative detail restricted to the LEFTMOST and RIGHTMOST 15% end caps. Long central70% has perfectly straight parallel top and bottom edges and a completely UNIFORM PLAIN DARK INTERIOR. No central graphics, shine gradient, ornamental pattern, seams or variation that would reveal stretching. A very faint constant glossy reflection only along the inside top edge.\nMiddle: EXACTLY the same dimensions, silhouette, end details, stroke weight and translucent smoked glass interior, but warm GOLD light #FFC24A with white-hot core instead of cyan.\nBottom left: small square of same chamfered smoked glass; only ONE thin hairline neutral grey-white outline, subdued, NO glow and NO decorations.\nAll frames are EMPTY: NO text, letters, numbers, icons, arrows, symbols, plus signs, checkmarks or anything in their centers. The wide frames will be stretched with9-slice scaling, so the center70% must remain utterly plain, translationally uniform horizontally. Glows only along edges, disappear within a few pixels; no surrounding haze. No floor, shadows, reflection below, background, title, separators, watermark or extra buttons. True alpha outside the frames; dark glass itself must remain visible and only slightly transparent, never cut out completely.",
+      "size": [
+        2048,
+        1536
+      ],
+      "alpha_range": [
+        0.0,
+        0.996078
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated-v2/buttons.png",
+      "regions": [
+        {
+          "name": "cyan",
+          "x": 224,
+          "y": 120,
+          "width": 1600,
+          "height": 320
+        },
+        {
+          "name": "gold",
+          "x": 224,
+          "y": 608,
+          "width": 1600,
+          "height": 320
+        },
+        {
+          "name": "quiet",
+          "x": 224,
+          "y": 1096,
+          "width": 320,
+          "height": 320
+        }
+      ]
+    }
+  ]
+}

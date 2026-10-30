@@ -1,0 +1,207 @@
+{
+  "titles.png": {
+    "glyphs": [
+      {
+        "character": "S",
+        "row": "SILVER LEAGUE",
+        "x": 94,
+        "y": 254,
+        "width": 127,
+        "height": 142
+      },
+      {
+        "character": "I",
+        "row": "SILVER LEAGUE",
+        "x": 267,
+        "y": 254,
+        "width": 27,
+        "height": 142
+      },
+      {
+        "character": "L",
+        "row": "SILVER LEAGUE",
+        "x": 335,
+        "y": 254,
+        "width": 111,
+        "height": 142
+      },
+      {
+        "character": "V",
+        "row": "SILVER LEAGUE",
+        "x": 460,
+        "y": 254,
+        "width": 141,
+        "height": 142
+      },
+      {
+        "character": "E",
+        "row": "SILVER LEAGUE",
+        "x": 638,
+        "y": 254,
+        "width": 117,
+        "height": 142
+      },
+      {
+        "character": "R",
+        "row": "SILVER LEAGUE",
+        "x": 794,
+        "y": 254,
+        "width": 123,
+        "height": 142
+      },
+      {
+        "character": "L",
+        "row": "SILVER LEAGUE",
+        "x": 1046,
+        "y": 254,
+        "width": 113,
+        "height": 142
+      },
+      {
+        "character": "E",
+        "row": "SILVER LEAGUE",
+        "x": 1193,
+        "y": 254,
+        "width": 116,
+        "height": 142
+      },
+      {
+        "character": "A",
+        "row": "SILVER LEAGUE",
+        "x": 1343,
+        "y": 254,
+        "width": 146,
+        "height": 142
+      },
+      {
+        "character": "G",
+        "row": "SILVER LEAGUE",
+        "x": 1519,
+        "y": 254,
+        "width": 128,
+        "height": 142
+      },
+      {
+        "character": "U",
+        "row": "SILVER LEAGUE",
+        "x": 1685,
+        "y": 254,
+        "width": 120,
+        "height": 142
+      },
+      {
+        "character": "E",
+        "row": "SILVER LEAGUE",
+        "x": 1842,
+        "y": 254,
+        "width": 116,
+        "height": 142
+      },
+      {
+        "character": "G",
+        "row": "GOLD LEAGUE",
+        "x": 201,
+        "y": 633,
+        "width": 134,
+        "height": 142
+      },
+      {
+        "character": "O",
+        "row": "GOLD LEAGUE",
+        "x": 373,
+        "y": 633,
+        "width": 141,
+        "height": 142
+      },
+      {
+        "character": "L",
+        "row": "GOLD LEAGUE",
+        "x": 551,
+        "y": 633,
+        "width": 111,
+        "height": 142
+      },
+      {
+        "character": "D",
+        "row": "GOLD LEAGUE",
+        "x": 692,
+        "y": 633,
+        "width": 125,
+        "height": 142
+      },
+      {
+        "character": "L",
+        "row": "GOLD LEAGUE",
+        "x": 939,
+        "y": 633,
+        "width": 112,
+        "height": 142
+      },
+      {
+        "character": "E",
+        "row": "GOLD LEAGUE",
+        "x": 1084,
+        "y": 633,
+        "width": 116,
+        "height": 142
+      },
+      {
+        "character": "A",
+        "row": "GOLD LEAGUE",
+        "x": 1235,
+        "y": 633,
+        "width": 145,
+        "height": 142
+      },
+      {
+        "character": "G",
+        "row": "GOLD LEAGUE",
+        "x": 1410,
+        "y": 633,
+        "width": 130,
+        "height": 142
+      },
+      {
+        "character": "U",
+        "row": "GOLD LEAGUE",
+        "x": 1578,
+        "y": 633,
+        "width": 119,
+        "height": 142
+      },
+      {
+        "character": "E",
+        "row": "GOLD LEAGUE",
+        "x": 1734,
+        "y": 633,
+        "width": 116,
+        "height": 142
+      }
+    ]
+  },
+  "buttons.png": {
+    "regions": [
+      {
+        "name": "cyan",
+        "x": 224,
+        "y": 120,
+        "width": 1600,
+        "height": 320
+      },
+      {
+        "name": "gold",
+        "x": 224,
+        "y": 608,
+        "width": 1600,
+        "height": 320
+      },
+      {
+        "name": "quiet",
+        "x": 224,
+        "y": 1096,
+        "width": 320,
+        "height": 320
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, type ViewStyle } from 'react-native';
-import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import { useAnimatedReaction, useDerivedValue, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import {
   Atlas,
   BlurMask,
@@ -127,6 +127,18 @@ export function Burst({
     [palette]
   );
   const confetti = kind === 'confetti';
+  // The clock, only while it's going off: set when it changes, so the canvas isn't redrawn every
+  // frame the clock it's given ticks over before or after
+  const live = useSharedValue(0);
+  useAnimatedReaction(
+    () => {
+      const t = clock.get();
+      return t > 0 && t < life ? t : 0;
+    },
+    (t, last) => {
+      if (t !== last) live.set(t);
+    }
+  );
   const rects = useRectBuffer(count, (r, i) => {
     'worklet';
     const k = confetti ? Math.floor(rnd(i, 1) * 4) : rnd(i, 1) < 0.72 ? STAR : SOFT;
@@ -135,7 +147,7 @@ export function Burst({
   });
   const transforms = useRSXformBuffer(count, (val, i) => {
     'worklet';
-    const t = Math.max(0, clock.get() - rnd(i, 2) * (confetti ? 0.12 : 0.06));
+    const t = Math.max(0, live.get() - rnd(i, 2) * (confetti ? 0.12 : 0.06));
     let px: number;
     let py: number;
     let turn: number;
@@ -176,7 +188,7 @@ export function Burst({
   });
   const colors = useColorBuffer(count, (c, i) => {
     'worklet';
-    const t = clock.get();
+    const t = live.get();
     const p = colours[Math.floor(rnd(i, 11) * colours.length)];
     const fade = 1 - Math.max(0, Math.min(1, (t - (life - 0.9 + rnd(i, 12) * 0.5)) / 0.6));
     c[0] = p[0];

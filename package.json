@@ -68,5 +68,13 @@
   "private": true,
   "trustedDependencies": [
     "react-native-skia"
-  ]
+  ],
+  "reanimated": {
+    "staticFeatureFlags": {
+      "IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
+  },
+  "patchedDependencies": {
+    "react-native-skia@3.0.3": "patches/react-native-skia@3.0.3.patch"
+  }
 }

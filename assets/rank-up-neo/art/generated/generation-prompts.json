@@ -1,0 +1,171 @@
+{
+  "tool": "built-in image_gen",
+  "postprocessing": "Requested formats/sizes, grayscale tint maps, sky horizon at 64%, bottom-aligned skyline, transparent badge margins; all existing assets preserved.",
+  "assets": [
+    {
+      "name": "sky.webp",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-20b780ac-3770-4e10-a94f-73d4fd0443d7.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nUse case: stylized-concept. Standalone game art asset.\nTall portrait phone wallpaper, 9:19.5 (1024x2218 or 1179x2556). A vast night sky of heavy, slow storm clouds\nover a digital world, seen from ground level looking straight ahead. Completely desaturated: neutral\ngrey-black clouds only, no colour at all. The clouds are lit from below by a soft glow along a perfectly\nstraight, level horizon line at exactly 64% of the image height from the top, brightest in the middle of the\nhorizon and fading towards the sides; the clouds get darker and darker going up, nearly black at the top.\nEverything below the horizon line is flat pure black #000000. No ground, no buildings, no stars, no moon,\nno light beams, no people.\n\nComposition lock: straight horizontal horizon at y=64% exactly. Rows below y=64% are featureless pure black with no texture whatsoever. All clouds above the horizon only. Fully grayscale; zero cyan, gold or other color. Requested aspect 9:19.5, portrait.",
+      "size": [
+        1024,
+        2218
+      ],
+      "horizon_y": 1420,
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/sky.webp"
+    },
+    {
+      "name": "horizon.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-61b9668d-4c34-432d-ae2e-4acf6795dd06.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nUse case: stylized-concept. Standalone game art asset.\nWide 2:1 image, 2048x1024, genuine transparent background. A distant skyline of a digital city seen dead-on\nfrom far away, standing on a perfectly flat, level base line that runs straight across the very bottom of the\nimage, edge to edge. In the exact centre, a tall slender monolith tower (about 85% of the image height) with\na stepped angular base and one sharp spire, and a round glowing core low in its base. Lower angular buildings\nand long low platforms step down on both sides, getting lower and further away towards the edges. All of it\nmatte black, outlined and banded only by thin strips of pure WHITE light, with small points of white light.\nPerfect bilateral symmetry. No sky, no clouds, no floor, no reflections, no glow outside the shapes.\n\nNo text or interface. Crisp clean edge with true transparent alpha around the object. Black material remains opaque, never remove the black object as background. City must be strictly neutral grayscale: only black structures and pure white light. No colors. Connected flat dark bottom base spans from left edge to right edge.",
+      "size": [
+        2048,
+        1024
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/horizon.png"
+    },
+    {
+      "name": "league-silver.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-a6c3d2aa-73f7-414e-98c4-82ccff9f446d.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nUse case: stylized-concept. Standalone game art asset.\nPremium 3D league badge, AAA quality. One single object, orthographic front view, perfectly symmetrical,\ncentred, filling about 85% of a 1024x1024 frame. Genuine transparent background, no cast shadow, no glow or\nhaze outside the object.\n\nA thick hexagonal plate of glossy black obsidian with chamfered edges and a brushed silver-graphite bevel.\nInlaid in its face: a segmented ring of cyan light (#33E6FF, white-hot core) running round just inside the\nedge, and in the middle two stacked upward chevrons drawn in thick strips of the same cyan light. Small\nnotched cut-outs at the six corners. Cool, precise, futuristic.\n\nIt gets traced and extruded into 3D: ONE connected solid silhouette, no floating parts, no holes through it.\n\nNo text or interface. Crisp clean edge with true transparent alpha around the object. Black material remains opaque, never remove the black object as background.",
+      "size": [
+        1024,
+        1024
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/league-silver.png"
+    },
+    {
+      "name": "league-gold.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-b17913f9-5b57-48d7-960e-ed5c5c056f12.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nUse case: stylized-concept. Standalone game art asset.\nPremium 3D league badge, AAA quality. One single object, orthographic front view, perfectly symmetrical,\ncentred, the whole thing including both wings fitting inside a 1024x1024 frame with a clear margin. Genuine\ntransparent background, no cast shadow, no glow or haze outside the object.\n\nA tall shield-shaped crest of glossy black obsidian with a polished gold bevel, grander than a plain shield.\nInlaid in its face, in thick strips of warm gold light (#FFC24A, white-hot core): a crown of three sharp\nangular points above three stacked upward chevrons, and a thin ring of light just inside the edge. A small\nfaceted amber gem at the top of the crown. Two swept angular wings spread from its upper sides, each made of\nlayered black blade-panels edged in gold light. Triumphant, regal, futuristic.\n\nIt gets traced and extruded into 3D: ONE connected solid silhouette, wings joined to the shield, no floating\nparts, no holes through it.\n\nNo text or interface. Crisp clean edge with true transparent alpha around the object. Black material remains opaque, never remove the black object as background.",
+      "size": [
+        1024,
+        1024
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/league-gold.png"
+    },
+    {
+      "name": "avatar-you.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-999cba7d-fc8f-4733-a34c-945d22b34c97.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: young man, messy dark-brown hair, warm grin. Light color: cyan #33E6FF (the only cyan one).\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-you.png"
+    },
+    {
+      "name": "avatar-mina.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-bf6c4335-e123-44af-aab2-1733c15c4a72.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: young Korean woman, sleek black bob with a blunt fringe. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-mina.png"
+    },
+    {
+      "name": "avatar-kenji.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-8fa5ab31-fa6d-4a48-9e7c-447972311c34.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: Japanese man, short undercut, thin rectangular glasses. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-kenji.png"
+    },
+    {
+      "name": "avatar-lucia.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-58a263a3-ef09-4709-958c-32a0647ab6b5.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: Spanish woman, long wavy dark hair in a high ponytail. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-lucia.png"
+    },
+    {
+      "name": "avatar-theo.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-8b56a57e-ee65-42ef-b7ff-4c007019a098.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: British man, ginger hair, freckles, short beard. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-theo.png"
+    },
+    {
+      "name": "avatar-ama.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-5b0731fa-4f9d-4c72-bdb4-8faddc28afa3.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: Ghanaian woman, short natural curls, a thin headband. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-ama.png"
+    },
+    {
+      "name": "avatar-rafael.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-cfade925-b9d9-48c1-8832-64dc7a51fd35.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: Brazilian man, curly black hair, warm brown skin. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-rafael.png"
+    },
+    {
+      "name": "avatar-priya.png",
+      "source": "/Users/quannguyen/.codex/generated_images/01a17d90-bc21-70c0-baa8-4a767935ddee/exec-0633bcf9-8328-444b-9163-630f26eef8e9.png",
+      "prompt": "Original sci-fi \"digital frontier\" world: a dark virtual world where light is the only colour. Matte black\nand deep graphite surfaces, glossy obsidian panels, and thin, perfectly clean strips of emissive light inlaid\nin the geometry, each with a white-hot core fading out to its colour. Cinematic, minimal and premium, as\nclean as an Apple keynote: huge contrast, deep true blacks, no clutter, no grunge, no noise, no lens dirt,\nno bloom haze. Original design, not based on any existing film, game, character or brand. No text, no\nletters, no numbers, no logos, no watermark.\n\nStylized 3D character portrait in a premium animated-film look: soft, appealing, friendly, big expressive\neyes. Head and shoulders, facing the camera, smiling, inside a perfect circle that fills the 512x512 frame;\ngenuinely transparent outside the circle. Inside the circle, a background of deep black-teal fading to black,\nwith a faint perspective grid of thin light lines low behind the shoulders. The character wears a sleek\nmatte-black high-collared bodysuit with thin inlaid strips of emissive light along the collar and shoulders,\nin the colour below. Face lit softly from the front, a crisp rim light from behind in the same colour.\nNo helmet, no frame or border round the circle.\n\nThe character: Indian woman, long braid over one shoulder, small nose stud. Light color: orange #FF7A1A.\nUse case: stylized-concept. Generate ONE ORIGINAL character, a distinct young adult with natural stylized facial proportions appropriate to the specified identity, not a stock identical face. Head upright and shoulders level, strict frontal face, zero head tilt, eyes looking directly at viewer, nose centered. Friendly believable smile. Clothing stays MATTE BLACK and dark graphite, with ONLY thin emissive light insets on collar/shoulder seams, never a brightly colored jacket or giant bulky armor. Match a polished premium animated-film 3D look with soft skin shading and clean geometry. No sunglasses; show expressive eyes. If the person wears prescription glasses, use clear lenses so the eyes remain visible. Black-teal circular backdrop with extremely faint perspective light-grid lines only low behind shoulders. Circle touches the four side midpoints of a square canvas, everything outside circle truly transparent. All hair and clothing clipped inside the circle. No border ring, no letters or numbers, no extra objects. Output 512x512 PNG.",
+      "size": [
+        512,
+        512
+      ],
+      "alpha_range": [
+        0,
+        1
+      ],
+      "output": "/Users/quannguyen/Documents/Freelance/vg-demos-all/.claude/worktrees/paper-plane/assets/rank-up-neo/art/generated/avatar-priya.png"
+    }
+  ]
+}

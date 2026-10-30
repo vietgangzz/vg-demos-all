@@ -17,6 +17,7 @@ import MetroTap from '@/demos/metro-tap';
 import PaperPlane from '@/demos/paper-plane';
 import PaperPlaneChat from '@/demos/paper-plane-chat';
 import RankUp from '@/demos/rank-up';
+import RankUpNeo from '@/demos/rank-up-neo';
 import SpringCard from '@/demos/spring-card';
 import MarketBag from '@/demos/sticker-cart';
 import Unboxing from '@/demos/unboxing';
@@ -47,6 +48,20 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'rank-up-neo',
+    title: 'Rank Up Neo',
+    description:
+      "Rank Up, from the future: the same league week's last seconds and promotion, in a world made of light: a storm sky over a city drawn in lines of light round a tower, and a grid running out across a black floor to it, pulses of light running along it. Silver's board is a TRON-style HUD, rivals edge-lit orange, your row lit cyan and climbing it while a neon-suited leg boots each one above out of the way, the row going to pieces and its coins flying into your XP; the Silver badge winds itself up on a pad of light, a dash of it lighting with every turn, and rockets off up through deck after deck of grid, a sheet of light going by as it passes each, straight into a tunnel of light going from cyan to gold; it flies off down it into the point of light at the end, and Gold's winged crest is built out of light a line at a time as the world turns gold from the middle out.",
+    vi: {
+      title: 'Thăng hạng Neo',
+      description:
+        'Thăng hạng phiên bản tương lai: vẫn những giây cuối của tuần giải đấu và màn thăng hạng, nhưng trong một thế giới làm bằng ánh sáng: bầu trời bão phủ trên một thành phố vẽ bằng những đường sáng quanh ngọn tháp, và lưới sáng chạy dài trên nền đen tới đó. Bảng xếp hạng là màn HUD kiểu TRON, đối thủ viền cam, hàng của bạn sáng cyan leo lên trong khi một chiếc chân neon đá văng từng người phía trên, hàng đó vỡ vụn và đồng xu bay vào XP của bạn; huy hiệu Bạc tự xoay tích năng lượng trên một vòng sáng, phóng lên xuyên qua từng tầng lưới, lao thẳng vào đường hầm ánh sáng chuyển từ cyan sang vàng, bay vào điểm sáng cuối đường hầm, và huy hiệu cánh vàng của giải Vàng được dựng lên từ ánh sáng từng đường một khi cả thế giới hoá vàng từ giữa ra.',
+    },
+    author: 'VG Team',
+    component: RankUpNeo,
+    hideClose: true,
+  },
   {
     id: 'spooky-progress',
     title: 'Spooky Progress',

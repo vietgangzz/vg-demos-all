@@ -31,7 +31,8 @@ from mathutils import Vector
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 LEAGUES = ARGS or ['silver', 'gold']
-ART = os.path.abspath('assets/rank-up/art')
+# Whose art: Rank Up's, or another set laid out the same way (ART=assets/rank-up-neo/art)
+ART = os.path.abspath(os.environ.get('ART', 'assets/rank-up/art'))
 FRAMES = int(os.environ.get('SPIN_FRAMES', 48))
 COLS = 8
 CELL = 320
@@ -42,6 +43,9 @@ RIM = {
     'silver': (0.86, 0.89, 0.94),
     'gold': (1.0, 0.72, 0.28),
 }
+# A set whose badges are black glass edged in light wants a black rim, not silver or gold (RIM=black)
+if os.environ.get('RIM') == 'black':
+    RIM = {league: (0.05, 0.055, 0.06) for league in RIM}
 TOOLS = ['/opt/homebrew/bin', '/usr/local/bin']
 
 
