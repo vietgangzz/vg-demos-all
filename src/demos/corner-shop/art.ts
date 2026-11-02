@@ -95,15 +95,16 @@ export function loadCardboard() {
   return cardboard;
 }
 
+/** An image from the bundle, decoded into a texture */
+export async function loadTexture(asset: number) {
+  const uri = Image.resolveAssetSource(asset)!.uri;
+  const image = Skia.Image.MakeImageFromEncoded(await Skia.Data.fromURI(uri));
+  if (!image) return null;
+  return canvasTexture(image.width(), image.height(), (c) => c.drawImage(image, 0, 0));
+}
+
 async function decodeCardboard(): Promise<Cardboard> {
-  const load = async (asset: number) => {
-    const uri = Image.resolveAssetSource(asset)!.uri;
-    const image = Skia.Image.MakeImageFromEncoded(await Skia.Data.fromURI(uri));
-    if (!image) return null;
-    const w = image.width();
-    const h = image.height();
-    return canvasTexture(w, h, (c) => c.drawImage(image, 0, 0));
-  };
+  const load = loadTexture;
   const [color, normal, edge] = await Promise.all([
     load(require('../../../assets/corner-shop/cardboard_color.jpg')),
     load(require('../../../assets/corner-shop/cardboard_normal.jpg')),

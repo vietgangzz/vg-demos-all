@@ -24,6 +24,7 @@ import {
   skyTexture,
   tagTexture,
 } from './art';
+import { applyBake, describe, LAYERS, lightAt, loadBake, type BakeLight, type Place } from './bake';
 import { buildGadget, GADGETS, type Gadget } from './gadgets';
 import { display, miniComputer, pothos, riser, snakePlant, succulent } from './home';
 import { buildInstantCamera, type InstantCamera } from './instant/camera';
@@ -124,6 +125,8 @@ export type ShopEvents = {
 };
 
 /** Board thickness */
+/** Raw kraft board, as the bake sees it */
+const KRAFT = '#8E6A45';
 const T = 0.04;
 const DEG = Math.PI / 180;
 
@@ -202,6 +205,8 @@ const LS = 0.038;
 const SLOT_ORDER = [3, 2, 4, 1, 5, 0, 6];
 /** Seconds for a print to develop untouched; shaking hurries it */
 const DEVELOP = 40;
+/** How far one good shake develops the print: a handful does it */
+const SHAKE_STEP = 0.2;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (t: number) => {
@@ -304,6 +309,7 @@ export function createCornerShop(
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), shadowMat(strength));
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 1;
+    mesh.userData.drawnShadow = true;
     return mesh;
   };
   /** Darkening up a wall from where something meets it (a vertical plane, darkest at its foot) */
@@ -317,6 +323,7 @@ export function createCornerShop(
       .mul(strength);
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
     mesh.renderOrder = 1;
+    mesh.userData.drawnShadow = true;
     return mesh;
   };
   /** Light added onto a surface: a glow, warm, shaped by `mask` over the plane's uv */
@@ -362,6 +369,8 @@ export function createCornerShop(
     } else base = kraft as unknown as THREE.Node<'vec3'>;
     if (shade !== 1) base = base.mul(shade) as unknown as THREE.Node<'vec3'>;
     m.colorNode = base;
+    // What the bake sees: the paper's colour, or kraft's
+    m.userData.albedo = `#${new THREE.Color(tint ?? KRAFT).multiplyScalar(shade).getHexString()}`;
     if (card.normal) {
       const k = paperLook ? 0.22 : 0.6;
       m.normalNode = TSL.normalMap(TSL.texture(card.normal, paperLook ? uv.mul(2.0) : uv), TSL.vec2(k, k));
@@ -399,6 +408,7 @@ export function createCornerShop(
     if (t.edge === 'corrugated')
       m.colorNode = card.edge ? TSL.texture(card.edge, TSL.uv().mul(TSL.vec2(6, 1))).rgb : TSL.vec3(0.4, 0.28, 0.17);
     else m.color = new THREE.Color(t.edge);
+    m.userData.albedo = t.edge === 'corrugated' ? '#6B4D30' : t.edge;
     edge = m;
     return m;
   };
@@ -448,6 +458,9 @@ export function createCornerShop(
   const neonLevel = level();
   const lampLevel = level();
   const fade = level();
+  // The baked light's levels: the room's bulbs (never quite off), the awning's
+  const roomLayer = level();
+  const awningLayer = level();
   /** The shelves' gadgets: the model, its price tag and its SOLD tag */
   const goods: { kind: Gadget; lift: THREE.Group; model: THREE.Object3D; tag: THREE.Mesh; sold: THREE.Mesh }[] = [];
   /** What's at home, waiting for the bag to be unpacked */
@@ -506,6 +519,7 @@ export function createCornerShop(
       const x = x0 + 0.05 + (i / (n - 1)) * (span - 0.1);
       bulb.position.set(x, y - 0.035 - sagAt(x), z + 0.01);
       bulb.scale.set(1, 1.35, 1);
+      bulb.userData.light = into === awningBulbs ? 'awning' : 'room';
       parent.add(bulb);
       into.push(lv);
     }
@@ -760,6 +774,8 @@ export function createCornerShop(
 
     // ---- Shared: the base it all stands on, the lamp by the door, the light out of the door ----
     {
+      // Each place gets its own copy of the base and the lamp, so each can have its own light baked on
+      const yard = new THREE.Group();
       const z0 = -RD - 0.2;
       const z1 = 1.9;
       const top = board(t.board.page, 3.2);
@@ -772,13 +788,13 @@ export function createCornerShop(
         edgeMat(),
       ]);
       base.position.set(0, -T / 2, (z0 + z1) / 2);
-      scene.add(base);
+      yard.add(base);
       scene.add(
         blob(FW + 0.8, z1 - z0 + 0.6, 0.6)
           .translateY(-T - 0.001)
           .translateZ((z0 + z1) / 2)
       );
-      scene.add(
+      yard.add(
         block(FW + 0.2, 0.05, 0.12, board(t.board.trim ?? t.board.page, 2))
           .translateY(0.025)
           .translateZ(z1 - 0.06)
@@ -786,7 +802,7 @@ export function createCornerShop(
 
       const at = new THREE.Group();
       at.position.set(-1.0, 2.05, 0);
-      scene.add(at);
+      yard.add(at);
       at.add(block(0.09, 0.16, 0.02, dark).translateZ(0.01));
       at.add(block(0.02, 0.02, 0.14, dark).translateZ(0.08).translateY(0.04));
       const glassM = new THREE.MeshBasicNodeMaterial();
@@ -794,6 +810,7 @@ export function createCornerShop(
       glassM.colorNode = TSL.vec3(warm.r * 1.6, warm.g * 1.6, warm.b * 1.6).mul(lampLevel);
       const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.15, 6), glassM);
       lantern.position.set(0, -0.05, 0.16);
+      lantern.userData.light = 'lamp';
       at.add(lantern);
       const cap = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.07, 6), dark);
       cap.position.set(0, 0.06, 0.16);
@@ -805,6 +822,8 @@ export function createCornerShop(
             .mul(0.22)
         ).translateZ(0.004)
       );
+      shop.add(yard);
+      home.add(yard.clone());
 
       const wedge = glow(1.9, 1.6, t.light.bulbs, spill, (uv) => {
         const d = uv.y.oneMinus();
@@ -877,6 +896,7 @@ export function createCornerShop(
           sold.visible = false;
           wall.add(sold);
           const holder = new THREE.Group();
+          holder.userData.live = true;
           holder.position.set(x, y + T / 2, 0.21);
           wall.add(holder);
           holder.add(blob(0.48, 0.32, 0.55).translateY(0.002));
@@ -993,6 +1013,7 @@ export function createCornerShop(
       shop.add(frame);
       const neon = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.164), nm);
       neon.position.set(cx, 1.4, -0.144);
+      neon.userData.light = 'neon';
       shop.add(neon);
       for (const x of [-0.17, 0.17]) {
         const chain = block(0.006, 0.25, 0.006, dark);
@@ -1037,6 +1058,7 @@ export function createCornerShop(
     // ---- The bell over the door ----
     {
       bell.position.set(0.5, DH + 0.04, 0.13);
+      bell.userData.live = true;
       shop.add(bell);
       const arm = block(0.015, 0.015, 0.13, brass);
       arm.position.set(0.5, DH + 0.05, 0.065);
@@ -1127,6 +1149,7 @@ export function createCornerShop(
     // ---- The shop's door ----
     {
       doorLeaf(shopDoor, t.board.door ?? '#3F6F78', true);
+      shopDoor.userData.live = true;
       shop.add(shopDoor);
       const gw = DW - 0.32;
       const gh = GY1 - GY0;
@@ -1252,6 +1275,7 @@ export function createCornerShop(
           .translateZ(0.19)
       );
       const screenUnit = fit(display(), 0.8, 0.62, 0.3);
+      screenUnit.userData.light = 'screen';
       screenUnit.position.set(0, DESK_Y + rise, 0.17);
       desk.add(screenUnit);
       desk.add(
@@ -1350,9 +1374,12 @@ export function createCornerShop(
       win.position.set(-RX + 0.005, 1.45, -1.35);
       win.rotation.y = Math.PI / 2;
       home.add(win);
-      win.add(
-        new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.0), new THREE.MeshBasicNodeMaterial({ map: skyTexture(t) }))
+      const sky = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.8, 1.0),
+        new THREE.MeshBasicNodeMaterial({ map: skyTexture(t) })
       );
+      sky.userData.light = 'window';
+      win.add(sky);
       const trim = board(t.home.trim, 1.8);
       for (const x of [-0.42, 0, 0.42]) win.add(block(0.05, 1.08, 0.04, trim).translateX(x));
       for (const y of [-0.52, 0, 0.52]) win.add(block(0.88, 0.05, 0.04, trim).translateY(y));
@@ -1379,16 +1406,19 @@ export function createCornerShop(
           const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.6, 14, 10), bm);
           bulb.scale.set(1, 1.35, 1);
           homeBulbs.push(lv);
+          bulb.userData.light = 'room';
           return bulb;
         },
       });
       line.group.position.set(0, 2.42, 0.11);
+      line.group.userData.live = true;
       line.group.scale.setScalar(LS);
       desk.add(line.group);
 
       // The instant camera, on the desk; a box round it a tap can't miss
       fuji.group.position.set(CAM_AT[0], CAM_AT[1] + (BODY.h / 2) * CS, CAM_AT[2]);
       fuji.group.rotation.y = -0.55;
+      fuji.group.userData.live = true;
       desk.add(fuji.group);
       const hit = new THREE.Mesh(
         new THREE.BoxGeometry(BODY.w * 1.4, BODY.h * 1.6, BODY.d * 2),
@@ -1411,6 +1441,7 @@ export function createCornerShop(
       for (const [kind, spot] of Object.entries(HOME) as [Gadget, (typeof HOME)[Gadget]][]) {
         if (spot.size[0] === 0) continue;
         const g = new THREE.Group();
+        g.userData.live = true;
         g.position.set(DESK_X + spot.at[0], spot.at[1], -RD + spot.at[2]);
         home.add(g);
         g.add(blob(spot.size[0] + 0.1, spot.size[2] + 0.08, 0.55).translateY(0.003));
@@ -1424,6 +1455,7 @@ export function createCornerShop(
     // ---- Home, outside: the door, its number, a plant, the bag on the mat ----
     {
       doorLeaf(homeDoor, t.home.door, false);
+      homeDoor.userData.live = true;
       home.add(homeDoor);
       const plateMap = plateTexture(f, t, '7B');
       const plateMat = new THREE.MeshStandardNodeMaterial({ map: plateMap, transparent: true, roughness: 0.35 });
@@ -1457,6 +1489,7 @@ export function createCornerShop(
       mat.position.set(0, 0.004, 0.58);
       home.add(mat);
       const bag = carrier(f);
+      bag.userData.live = true;
       bag.position.set(0.95, 0, 0.5);
       bag.rotation.y = -0.4;
       home.add(bag);
@@ -1472,12 +1505,50 @@ export function createCornerShop(
         );
       // A little lamp on the sill inside
       const sill = fit(buildGadget('lamp'), 0.16, 0.24, 0.14);
+      sill.userData.light = 'sill';
       sill.position.set(cx, WY0, -0.24);
       home.add(sill);
     }
 
+    if (t.look === 'kraft') {
+      const [s, h] = await Promise.all([loadBake('shop'), loadBake('home')]);
+      const one = TSL.float(1);
+      if (s) applyBake(shop, s.data, s.maps, [one, roomLayer, awningLayer, neonLevel]);
+      if (h) applyBake(home, h.data, h.maps, [one, roomLayer]);
+    }
+
     applyState(init.bag, init.site);
     ready = true;
+  };
+
+  /** What lights each place, for the bake: where each tagged light is, and which layer it's in */
+  const LIGHT_LAYER: Record<string, string> = {
+    lamp: 'base',
+    window: 'base',
+    sill: 'base',
+    room: 'room',
+    screen: 'room',
+    awning: 'awning',
+    neon: 'neon',
+  };
+  const lightColour = (kind: string) =>
+    ({
+      lamp: t.light.lamp,
+      window: '#9FB6FF',
+      sill: t.light.lamp,
+      room: t.light.bulbs,
+      screen: '#B6A6FF',
+      awning: t.light.bulbs,
+      neon: `#${new THREE.Color(...t.neon).multiplyScalar(1 / Math.max(...t.neon)).getHexString()}`,
+    })[kind] ?? '#FFFFFF';
+  const bakeLights = (root: THREE.Object3D) => {
+    const out: BakeLight[] = [];
+    root.updateMatrixWorld(true);
+    root.traverse((o) => {
+      const kind = o.userData.light as string | undefined;
+      if (kind) out.push(lightAt(o, kind, LIGHT_LAYER[kind] ?? 'base', lightColour(kind)));
+    });
+    return out;
   };
 
   // ---- Post: bloom for the bulbs and neon, a grade, a vignette, grain, the fade between places ----
@@ -1585,6 +1656,8 @@ export function createCornerShop(
   let wantShot = false;
   let flash = 0;
   let dev = 0;
+  /** Where the developing is heading: each shake adds a good step, and the picture eases up to it */
+  let devGoal = 0;
   let lastDev = -1;
   let energy = 0;
   let lastPeak = 0;
@@ -1849,7 +1922,9 @@ export function createCornerShop(
             .copy(presentPose(pose).position)
             .addScaledVector(tv2, wobble.x * 0.03)
             .addScaledVector(upV, wobble.y * 0.03);
-          dev = Math.min(1, dev + dt * (1 / DEVELOP + energy * 0.17));
+          devGoal = Math.min(1, devGoal + dt / DEVELOP);
+          dev = Math.min(1, dev + (devGoal - dev) * Math.min(1, dt * 2.6));
+          if (devGoal >= 1 && dev > 0.985) dev = 1;
           if (Math.abs(dev - lastDev) > 0.01 || (dev >= 1 && lastDev < 1)) {
             lastDev = dev;
             events.onDevelop(dev);
@@ -1948,6 +2023,7 @@ export function createCornerShop(
       energy = Math.max(energy, THREE.MathUtils.smoothstep(shakeNow, 3, 16));
       if (shakeNow > 9 && elapsed - lastPeak > 0.13) {
         lastPeak = elapsed;
+        devGoal = Math.min(1, devGoal + SHAKE_STEP);
         flow.x += hp.x * 0.04;
         flow.y += hp.y * 0.04;
         events.onHaptic('shake');
@@ -2052,6 +2128,7 @@ export function createCornerShop(
     });
     const room = smooth(22, 82, deg);
     roomLit.value = room;
+    roomLayer.value = 0.08 + 0.92 * room;
     const power = t.light.inside * (inShop ? 1 : 0.85);
     roomFront.intensity = power * (0.08 + 0.92 * room);
     roomBack.intensity = power * 0.8 * (0.08 + 0.92 * room);
@@ -2066,6 +2143,7 @@ export function createCornerShop(
         b.value = smooth(at, at + 4, deg);
         if (i % 3 === 0 && passedUp(before, deg, at + 2)) events.onHaptic('bulb');
       });
+      awningLayer.value = awningBulbs.reduce((n, b) => n + (b.value as number), 0) / awningBulbs.length;
       if (passedUp(before, deg, 112)) {
         neonT = 0;
         events.onHaptic('neon');
@@ -2263,6 +2341,7 @@ export function createCornerShop(
       wobble.y -= dy * 0.004;
       if (v > 18 && elapsed - lastPeak > 0.12) {
         lastPeak = elapsed;
+        devGoal = Math.min(1, devGoal + SHAKE_STEP);
         flow.x += dx * 0.01;
         flow.y -= dy * 0.01;
         events.onHaptic('shake');
@@ -2283,7 +2362,7 @@ export function createCornerShop(
       flash = 1;
       events.onSound('shutter');
       events.onHaptic('shutter');
-      dev = 0;
+      dev = devGoal = 0;
       lastDev = -1;
       energy = 0;
       flow.set(Math.random() * 10, Math.random() * 10);
@@ -2350,6 +2429,29 @@ export function createCornerShop(
       renderer.setSize(w * ratio, h * ratio, false);
       placeOutside();
       placeCamera(shown / DEG);
+    },
+    /** Development: each place's fixtures and lights, sent to the bake server (scripts/blender/corner_shop_bake_server.py) */
+    async bakeOut(url: string) {
+      const env = {
+        sky: t.light.sky,
+        ground: t.light.groundColor,
+        hemi: t.light.hemi,
+        key: t.light.key,
+        keyAt: t.light.keyAt,
+        keyPower: t.light.keyPower,
+        rim: t.light.rim,
+        rimPower: t.light.rimPower,
+        lampPower: t.light.lampPower,
+        inside: t.light.inside,
+      };
+      const sent: Record<string, number> = {};
+      for (const place of Object.keys(LAYERS) as Place[]) {
+        const root = place === 'shop' ? shop : home;
+        const body = JSON.stringify({ place, layers: LAYERS[place], env, ...describe(root, bakeLights(root)) });
+        await fetch(`${url}/${place}`, { method: 'POST', body });
+        sent[place] = body.length;
+      }
+      return sent;
     },
     debug() {
       return { target: target / DEG, shown: shown / DEG, ready, wide, failed, site, bag, shot, dev };
