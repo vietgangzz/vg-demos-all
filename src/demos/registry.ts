@@ -5,6 +5,7 @@ import DailyDrop from '@/demos/daily-drop';
 import FairyGlobe from '@/demos/fairy-globe';
 import Juice from '@/demos/juice';
 import Library from '@/demos/library';
+import Marbles from '@/demos/marbles';
 import MetroBoard from '@/demos/metro-board';
 import MetroCinematic from '@/demos/metro-cinematic';
 import MetroMorning from '@/demos/metro-morning';
@@ -48,6 +49,19 @@ export type Demo = {
  * and default-exports a full-screen component.
  */
 export const demos: Demo[] = [
+  {
+    id: 'marbles',
+    title: 'Marbles',
+    description:
+      'Liquid glass marbles on a poster, drawn with react-native-tgfx. Each marble is a <Glass> node bending the type and the aurora behind it, its rainbow edge flaring with speed and its highlight turned to the light. Drag one and throw it, tap the glass for a shockwave, drag anywhere else to move the light, tilt the phone to roll them, or let them float.',
+    vi: {
+      title: 'Bi thuỷ tinh',
+      description:
+        'Bi thuỷ tinh lỏng trên một tấm poster, vẽ bằng react-native-tgfx. Mỗi viên bi là một node <Glass> bẻ cong chữ và cực quang phía sau, viền cầu vồng loé lên theo tốc độ, điểm sáng luôn quay về phía nguồn sáng. Kéo một viên rồi ném, chạm mặt kính để tạo sóng xung kích, kéo chỗ trống để dời nguồn sáng, nghiêng máy cho bi lăn, hoặc thả cho bi bay lơ lửng.',
+    },
+    author: 'VG Team',
+    component: Marbles,
+  },
   {
     id: 'rank-up-neo',
     title: 'Rank Up Neo',
